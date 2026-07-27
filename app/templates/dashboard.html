@@ -35,15 +35,19 @@
       <span class="slug">{{ repo.slug }}</span>
       <span class="on-forge">on {{ forge_labels.get(repo.forge_type, repo.forge_type) }}</span>
       {% if not repo.include_prereleases %}<span class="pill pill-off">no pre-releases</span>{% endif %}
-      {% if item.releases %}
-      <span class="repo-head-right">updated {{ (item.releases[0].published_at or item.releases[0].discovered_at) | reltime }}</span>
+      {% if item.releases and item.releases[0].published_at %}
+      <span class="repo-head-right">updated {{ item.releases[0].published_at | reltime }}</span>
       {% endif %}
     </div>
     {% if item.releases %}
     <div class="rel-flow">
       {% for rel in item.releases %}
       <span class="rel-entry">
-        <span class="rel-when">{{ (rel.published_at or rel.discovered_at) | reltime }}:</span>
+        {% if rel.published_at %}
+        <span class="rel-when">{{ rel.published_at | reltime }}:</span>
+        {% else %}
+        <span class="rel-when" title="No release date from the forge — showing when Release Radar first saw it">seen {{ rel.discovered_at | reltime }}:</span>
+        {% endif %}
         {% if not rel.notified %}<span class="dot dot-new" title="Awaiting Telegram delivery"></span>{% endif %}
         {% if rel.url %}<a class="rel-ver" href="{{ rel.url }}" target="_blank" rel="noopener">{{ rel.tag_name or rel.name }}</a>
         {% else %}<span class="rel-ver">{{ rel.tag_name or rel.name }}</span>{% endif %}

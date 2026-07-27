@@ -21,10 +21,6 @@ SORTS = {"updated", "added", "name"}
 _OLDEST = datetime.min.replace(tzinfo=timezone.utc)
 
 
-def _rtime(r: Release) -> datetime:
-    return r.published_at or r.discovered_at
-
-
 def dedupe_versions(releases: list[Release]) -> list[Release]:
     """Collapse a release and a tag for the same version into one entry, keeping
     the release (which carries a real published date; a bare tag often doesn't).
@@ -64,15 +60,21 @@ async def dashboard(
     for r in releases:
         by_repo[r.repository_id].append(r)
     for rid, rs in by_repo.items():
-        deduped = dedupe_versions(rs)          # release wins over same-version tag
-        deduped.sort(key=_rtime, reverse=True)  # newest first within each repo
+        deduped = dedupe_versions(rs)  # release wins over same-version tag
+        # Sort by real publish date, newest first. Entries with no date (e.g.
+        # GitHub tags, whose API carries none) sink to the bottom instead of
+        # masquerading as "just now" via their poll time.
+        deduped.sort(key=lambda r: r.published_at or _OLDEST, reverse=True)
         by_repo[rid] = deduped
 
     shown_repos = [r for r in repos if r.id == repo] if repo else repos
 
     def latest(r: Repository) -> datetime:
-        rs = by_repo.get(r.id)
-        return _rtime(rs[0]) if rs else _OLDEST
+        rs = by_repo.get(r.id) or []
+        dated = [x.published_at for x in rs if x.published_at]
+        if dated:
+            return max(dated)  # rank by newest real release, not poll time
+        return max((x.discovered_at for x in rs), default=_OLDEST)
 
     if sort == "name":
         shown_repos.sort(key=lambda r: r.slug.lower())
