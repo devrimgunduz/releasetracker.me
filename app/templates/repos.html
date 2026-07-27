@@ -33,8 +33,8 @@
     </div>
     <div class="form-row" style="margin:6px 0 18px">
       <label class="check"><input type="checkbox" name="watch_releases" value="true" checked> Watch releases</label>
-      <label class="check"><input type="checkbox" name="watch_tags" value="true"> Watch tags</label>
-      <label class="check"><input type="checkbox" name="exclude_prereleases" value="true"> Exclude pre-releases</label>
+      <label class="check"><input type="checkbox" name="watch_tags" value="true" checked> Watch tags</label>
+      <label class="check"><input type="checkbox" name="exclude_prereleases" value="true" checked> Exclude pre-releases</label>
     </div>
 
     <div style="border-top:1px solid var(--line);margin:4px 0 16px;padding-top:16px">
@@ -56,7 +56,7 @@
       {% else %}
       <p class="hint" style="margin:0 0 10px">No Telegram bots yet — add one on the <a href="/bots">Telegram bots</a> page.</p>
       {% endif %}
-      <label class="check"><input type="checkbox" name="email_digest" value="true"> Include in the daily email digest</label>
+      <label class="check"><input type="checkbox" name="email_digest" value="true" checked> Include in the daily email digest</label>
       <div class="hint" style="margin-top:6px">Checked Telegram bots deliver to their default chat. Fine-tune or add per-channel routes on the <a href="/routes">Notifications</a> page.</div>
     </div>
 
