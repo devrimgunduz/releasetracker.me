@@ -6,30 +6,25 @@
 <div class="card">
   <h2>Add a repository</h2>
   <form method="post" action="/repositories/add">
-    <div class="form-grid">
-      <div class="field">
-        <label for="forge_type">Forge</label>
-        <select id="forge_type" name="forge_type" onchange="onForgeChange()">
-          {% for p in providers %}
-          <option value="{{ p.key }}"
-                  data-requires-url="{{ '1' if p.requires_base_url else '0' }}"
-                  data-tags-only="{{ '1' if not p.supports_releases else '0' }}">{{ p.label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="field" id="baseUrlField" style="display:none">
-        <label for="base_url">Instance URL <span class="hint">e.g. https://codeberg.org</span></label>
-        <input type="text" id="base_url" name="base_url" placeholder="https://git.example.com">
+    <div class="field">
+      <label for="url">Repository URL</label>
+      <input type="text" id="url" name="url" placeholder="https://github.com/devrimgunduz/passwordcheck_cracklib" required autofocus>
+      <div class="hint" style="margin-top:5px">
+        Paste the repo's web URL. Public hosts (GitHub, GitLab, Bitbucket, Codeberg)
+        are detected automatically. For a self-hosted server, pick its type below.
       </div>
     </div>
     <div class="form-grid">
       <div class="field">
-        <label for="owner">Owner / group / workspace</label>
-        <input type="text" id="owner" name="owner" placeholder="prometheus" required>
-      </div>
-      <div class="field">
-        <label for="name">Repository</label>
-        <input type="text" id="name" name="name" placeholder="prometheus" required>
+        <label for="forge_type">Forge <span class="hint">used only for self-hosted hosts</span></label>
+        <select id="forge_type" name="forge_type" onchange="onForgeChange()">
+          {% for p in providers %}
+          <option value="{{ p.key }}"
+                  {{ 'selected' if p.key == 'github' else '' }}
+                  data-tags-only="{{ '1' if not p.supports_releases else '0' }}">{{ p.label }}</option>
+          {% endfor %}
+        </select>
+        <span id="tagsHint" class="hint" style="display:none">Bitbucket has no releases — tags only</span>
       </div>
     </div>
     <div class="field">
@@ -38,7 +33,7 @@
     </div>
     <div class="form-row" style="margin:6px 0 18px">
       <label class="check"><input type="checkbox" name="watch_releases" value="true" checked> Watch releases</label>
-      <label class="check"><input type="checkbox" name="watch_tags" value="true"> Watch tags <span id="tagsHint" class="hint" style="display:none">(Bitbucket has no releases — tags only)</span></label>
+      <label class="check"><input type="checkbox" name="watch_tags" value="true"> Watch tags</label>
     </div>
     <button type="submit">Add repository</button>
   </form>
@@ -84,8 +79,6 @@
   function onForgeChange() {
     var sel = document.getElementById('forge_type');
     var opt = sel.options[sel.selectedIndex];
-    document.getElementById('baseUrlField').style.display = opt.dataset.requiresUrl === '1' ? '' : 'none';
-    document.getElementById('base_url').required = opt.dataset.requiresUrl === '1';
     document.getElementById('tagsHint').style.display = opt.dataset.tagsOnly === '1' ? '' : 'none';
   }
   onForgeChange();
