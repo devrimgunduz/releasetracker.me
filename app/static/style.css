@@ -228,3 +228,25 @@ button:hover, .btn:hover { background: var(--teal-dark); text-decoration: none; 
   .main { padding: 24px 20px 48px; }
   .form-grid { grid-template-columns: 1fr; }
 }
+
+/* ── Dashboard: sort tabs + grouped release cards ──────── */
+.sort-tabs { display: flex; align-items: center; gap: 4px; margin-bottom: 22px; font-size: 13px; flex-wrap: wrap; }
+.sort-tabs .lbl { color: var(--ink-faint); margin-right: 4px; }
+.sort-tabs a { padding: 5px 12px; border-radius: 999px; color: var(--ink-soft); border: 1px solid var(--line); }
+.sort-tabs a:hover { background: #eef1f0; text-decoration: none; }
+.sort-tabs a.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+.repo-card { padding: 16px 20px; margin-bottom: 14px; }
+.repo-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.repo-head .on-forge { color: var(--ink-faint); font-size: 13px; }
+.repo-head-right { margin-left: auto; color: var(--ink-faint); font-size: 12px; white-space: nowrap; }
+
+.rel-flow { line-height: 2; }
+.rel-entry { display: inline; margin-right: 20px; white-space: nowrap; }
+.rel-when { color: var(--ink-faint); font-size: 12.5px; }
+.rel-ver { font-family: var(--mono); font-size: 13.5px; }
+.rel-entry .dot { margin: 0 1px 1px 0; width: 7px; height: 7px; }
+.pre-tag { font-size: 9.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--amber); background: var(--amber-wash); padding: 1px 5px; border-radius: 4px; margin-left: 2px; }
+.rel-more { font-size: 13px; white-space: nowrap; }
+.rel-empty { color: var(--ink-faint); font-size: 13px; }
+.back-link { display: inline-block; margin-bottom: 16px; font-size: 13px; color: var(--ink-soft); }

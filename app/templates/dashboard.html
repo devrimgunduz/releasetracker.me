@@ -4,7 +4,7 @@
 <div class="page-head">
   <div>
     <h1>Dashboard</h1>
-    <p class="subtitle">Everything the radar has picked up, newest first.</p>
+    <p class="subtitle">Every watched repository and the releases the radar has picked up.</p>
   </div>
   <form method="post" action="/poll-now" class="inline-form">
     <button type="submit" class="btn-ghost">Poll now</button>
@@ -12,63 +12,59 @@
 </div>
 
 <div class="stat-row">
-  <div class="stat"><div class="n">{{ repos|length }}</div><div class="l">Repositories</div></div>
+  <div class="stat"><div class="n">{{ repo_count }}</div><div class="l">Repositories</div></div>
   <div class="stat"><div class="n">{{ total_releases }}</div><div class="l">Items seen</div></div>
 </div>
 
-{% if repos %}
-<form method="get" action="/" class="filter-bar">
-  <label for="repo_id" style="font-size:13px;color:var(--ink-soft);font-weight:600">Filter</label>
-  <select id="repo_id" name="repo_id" onchange="this.form.submit()">
-    <option value="">All repositories</option>
-    {% for r in repos %}
-    <option value="{{ r.id }}" {{ 'selected' if selected_repo == r.id else '' }}>{{ r.slug }}</option>
-    {% endfor %}
-  </select>
-  {% if selected_repo %}<a class="btn btn-ghost btn-sm" href="/">Clear</a>{% endif %}
-</form>
+{% if expanded %}
+  <a class="back-link" href="/?sort={{ sort }}">← All repositories</a>
+{% else %}
+  <div class="sort-tabs">
+    <span class="lbl">Sort</span>
+    <a href="/?sort=updated" class="{{ 'active' if sort == 'updated' else '' }}">recently updated</a>
+    <a href="/?sort=added" class="{{ 'active' if sort == 'added' else '' }}">recently added</a>
+    <a href="/?sort=name" class="{{ 'active' if sort == 'name' else '' }}">name</a>
+  </div>
 {% endif %}
 
-<div class="card card-tight">
-  {% if rows %}
-  <table>
-    <thead>
-      <tr>
-        <th style="width:34px"></th>
-        <th>Repository</th>
-        <th>Type</th>
-        <th>Release / tag</th>
-        <th>Published</th>
-        <th>Seen</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for release, repo in rows %}
-      <tr>
-        <td>
-          <span class="dot {{ 'dot-new' if not release.notified else 'dot-seen' }}"
-                title="{{ 'Awaiting Telegram delivery' if not release.notified else 'Delivered' }}"></span>
-        </td>
-        <td><span class="slug">{{ repo.slug }}</span> <span class="pill pill-forge">{{ repo.forge_type }}</span></td>
-        <td><span class="pill pill-{{ release.kind }}">{{ release.kind }}</span>{% if release.prerelease %} <span class="pill pill-off">pre</span>{% endif %}</td>
-        <td>
-          {% if release.url %}<a href="{{ release.url }}" target="_blank" rel="noopener">{{ release.name or release.tag_name }}</a>
-          {% else %}{{ release.name or release.tag_name }}{% endif %}
-          {% if release.tag_name and release.tag_name != release.name %}<span class="mono" style="color:var(--ink-faint)"> · {{ release.tag_name }}</span>{% endif %}
-        </td>
-        <td class="mono" style="color:var(--ink-soft)">{{ release.published_at.strftime('%Y-%m-%d') if release.published_at else '—' }}</td>
-        <td class="mono" style="color:var(--ink-soft)">{{ release.discovered_at.strftime('%Y-%m-%d %H:%M') }}</td>
-      </tr>
+{% if items %}
+  {% for item in items %}
+  {% set repo = item.repo %}
+  <div class="card repo-card">
+    <div class="repo-head">
+      <span class="slug">{{ repo.slug }}</span>
+      <span class="on-forge">on {{ forge_labels.get(repo.forge_type, repo.forge_type) }}</span>
+      {% if not repo.include_prereleases %}<span class="pill pill-off">no pre-releases</span>{% endif %}
+      {% if item.releases %}
+      <span class="repo-head-right">updated {{ (item.releases[0].published_at or item.releases[0].discovered_at) | reltime }}</span>
+      {% endif %}
+    </div>
+    {% if item.releases %}
+    <div class="rel-flow">
+      {% for rel in item.releases %}
+      <span class="rel-entry">
+        <span class="rel-when">{{ (rel.published_at or rel.discovered_at) | reltime }}:</span>
+        {% if not rel.notified %}<span class="dot dot-new" title="Awaiting Telegram delivery"></span>{% endif %}
+        {% if rel.url %}<a class="rel-ver" href="{{ rel.url }}" target="_blank" rel="noopener">{{ rel.tag_name or rel.name }}</a>
+        {% else %}<span class="rel-ver">{{ rel.tag_name or rel.name }}</span>{% endif %}
+        {% if rel.prerelease %}<span class="pre-tag">pre</span>{% endif %}
+      </span>
       {% endfor %}
-    </tbody>
-  </table>
-  {% else %}
-  <div class="empty">
-    {% include "_mark.html" %}
-    <p><strong>Nothing on the radar yet.</strong></p>
-    <p>Add a repository, then hit <em>Poll now</em>. The first sweep records a baseline quietly — you'll be notified from the next new release on.</p>
-    <p style="margin-top:14px"><a class="btn" href="/repositories">Add a repository</a></p>
+      {% if item.more %}<a class="rel-more" href="/?sort={{ sort }}&repo={{ repo.id }}">more… ({{ item.more }})</a>{% endif %}
+    </div>
+    {% else %}
+    <div class="rel-empty">No releases seen yet{% if not repo.seeded %} — baseline captured on the first poll{% endif %}.</div>
+    {% endif %}
   </div>
-  {% endif %}
-</div>
+  {% endfor %}
+{% else %}
+  <div class="card">
+    <div class="empty">
+      {% include "_mark.html" %}
+      <p><strong>Nothing on the radar yet.</strong></p>
+      <p>Add a repository, then hit <em>Poll now</em>. The first sweep records a baseline quietly — you'll be notified from the next new release on.</p>
+      <p style="margin-top:14px"><a class="btn" href="/repositories">Add a repository</a></p>
+    </div>
+  </div>
+{% endif %}
 {% endblock %}
