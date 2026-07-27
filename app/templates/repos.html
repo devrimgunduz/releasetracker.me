@@ -34,6 +34,7 @@
     <div class="form-row" style="margin:6px 0 18px">
       <label class="check"><input type="checkbox" name="watch_releases" value="true" checked> Watch releases</label>
       <label class="check"><input type="checkbox" name="watch_tags" value="true"> Watch tags</label>
+      <label class="check"><input type="checkbox" name="exclude_prereleases" value="true"> Exclude pre-releases</label>
     </div>
 
     <div style="border-top:1px solid var(--line);margin:4px 0 16px;padding-top:16px">
@@ -79,6 +80,11 @@
         <td>
           {% if r.watch_releases %}<span class="pill pill-release">releases</span>{% endif %}
           {% if r.watch_tags %}<span class="pill pill-tag">tags</span>{% endif %}
+          <form method="post" action="/repositories/{{ r.id }}/toggle-prereleases" class="inline-form">
+            <button type="submit" class="btn-link btn-sm" title="Click to toggle">
+              {% if r.include_prereleases %}<span class="pill pill-tag">incl. pre-releases</span>{% else %}<span class="pill pill-off">no pre-releases</span>{% endif %}
+            </button>
+          </form>
         </td>
         <td class="mono" style="color:var(--ink-soft);font-size:12px">
           {{ r.last_polled_at.strftime('%Y-%m-%d %H:%M') if r.last_polled_at else 'never' }}

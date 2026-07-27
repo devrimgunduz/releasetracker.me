@@ -5,10 +5,23 @@ and register it with @register("name"). Nothing else in the app needs to change.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 
 import httpx
+
+# Detects a pre-release identifier in a tag/version string, for forges that don't
+# expose an explicit flag (GitLab, Bitbucket) and for plain tags. Requires the
+# token to follow a separator so real names like "prometheus" don't match "pre".
+_PRE_RE = re.compile(
+    r"[-_.+](?:alpha|beta|rc|preview|pre|dev|snapshot|nightly|canary|eap)",
+    re.IGNORECASE,
+)
+
+
+def looks_prerelease(tag: str) -> bool:
+    return bool(_PRE_RE.search(tag or ""))
 
 
 @dataclass(slots=True)
@@ -21,6 +34,7 @@ class ReleaseItem:
     tag_name: str = ""
     url: str = ""
     published_at: datetime | None = None
+    prerelease: bool = False
 
 
 @dataclass(slots=True)

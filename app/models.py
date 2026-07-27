@@ -50,6 +50,7 @@ class Repository(Base):
 
     watch_releases: Mapped[bool] = mapped_column(Boolean, default=True)
     watch_tags: Mapped[bool] = mapped_column(Boolean, default=False)
+    include_prereleases: Mapped[bool] = mapped_column(Boolean, default=True)
 
     token_enc: Mapped[str | None] = mapped_column(Text, nullable=True)  # encrypted access token
     seeded: Mapped[bool] = mapped_column(Boolean, default=False)        # baseline captured?
@@ -117,6 +118,7 @@ class Release(Base):
 
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     discovered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    prerelease: Mapped[bool] = mapped_column(Boolean, default=False)
 
     notified: Mapped[bool] = mapped_column(Boolean, default=False)   # Telegram sent?
     summarized: Mapped[bool] = mapped_column(Boolean, default=False)  # included in a digest?

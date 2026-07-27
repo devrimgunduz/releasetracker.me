@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from .base import Provider, RepoRef, ReleaseItem, register
+from .base import Provider, RepoRef, ReleaseItem, looks_prerelease, register
 
 
 def _parse_ts(value: str | None) -> datetime | None:
@@ -43,6 +43,7 @@ class BitbucketProvider(Provider):
                     tag_name=t["name"],
                     url=f"{web}/{t['name']}",
                     published_at=_parse_ts(target.get("date")),
+                    prerelease=looks_prerelease(t["name"]),
                 )
             )
         return items

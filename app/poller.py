@@ -129,6 +129,9 @@ async def _poll_repo(client: httpx.AsyncClient, repo_id: int) -> None:
         first_run = not repo.seeded
         created: list[Release] = []
         for it in new_items:
+            # Excluded pre-releases are still recorded (visible on the dashboard)
+            # but pre-marked handled so they never notify or enter the digest.
+            exclude = (not repo.include_prereleases) and it.prerelease
             row = Release(
                 repository_id=repo.id,
                 kind=it.kind,
@@ -137,9 +140,11 @@ async def _poll_repo(client: httpx.AsyncClient, repo_id: int) -> None:
                 tag_name=it.tag_name,
                 url=it.url,
                 published_at=it.published_at,
-                # On first run we baseline silently: mark everything already handled.
-                notified=first_run,
-                summarized=first_run,
+                prerelease=it.prerelease,
+                # On first run we baseline silently; excluded pre-releases are
+                # likewise marked done so they stay quiet.
+                notified=first_run or exclude,
+                summarized=first_run or exclude,
             )
             session.add(row)
             created.append(row)

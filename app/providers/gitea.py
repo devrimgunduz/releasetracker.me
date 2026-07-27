@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from .base import Provider, RepoRef, ReleaseItem, register
+from .base import Provider, RepoRef, ReleaseItem, looks_prerelease, register
 
 
 def _parse_ts(value: str | None) -> datetime | None:
@@ -37,6 +37,7 @@ class GiteaProvider(Provider):
                 tag_name=r.get("tag_name", ""),
                 url=r.get("html_url", ""),
                 published_at=_parse_ts(r.get("published_at") or r.get("created_at")),
+                prerelease=bool(r.get("prerelease")),
             )
             for r in data
         ]
@@ -52,6 +53,7 @@ class GiteaProvider(Provider):
                 name=t["name"],
                 tag_name=t["name"],
                 url=f"{web}/{t['name']}",
+                prerelease=looks_prerelease(t["name"]),
             )
             for t in data
         ]

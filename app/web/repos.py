@@ -43,6 +43,7 @@ async def add_repo(
     token: str = Form(""),
     watch_releases: bool = Form(False),
     watch_tags: bool = Form(False),
+    exclude_prereleases: bool = Form(False),
     bot_ids: list[int] = Form(default=[]),
     email_digest: bool = Form(False),
     user=Depends(current_user),
@@ -66,6 +67,7 @@ async def add_repo(
         token_enc=encrypt(token.strip()) if token.strip() else None,
         watch_releases=watch_releases,
         watch_tags=watch_tags,
+        include_prereleases=not exclude_prereleases,
     )
     session.add(repo)
     try:
@@ -129,6 +131,22 @@ async def delete_repo(
         await session.delete(repo)
         await session.commit()
         flash(request, f"Stopped watching {repo.slug}.", "success")
+    return redirect("/repositories")
+
+
+@router.post("/{repo_id}/toggle-prereleases")
+async def toggle_prereleases(
+    repo_id: int,
+    request: Request,
+    user=Depends(current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    repo = await session.get(Repository, repo_id)
+    if repo:
+        repo.include_prereleases = not repo.include_prereleases
+        await session.commit()
+        state = "including" if repo.include_prereleases else "excluding"
+        flash(request, f"Now {state} pre-releases for {repo.slug}.", "success")
     return redirect("/repositories")
 
 

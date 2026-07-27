@@ -50,7 +50,7 @@
                 title="{{ 'Awaiting Telegram delivery' if not release.notified else 'Delivered' }}"></span>
         </td>
         <td><span class="slug">{{ repo.slug }}</span> <span class="pill pill-forge">{{ repo.forge_type }}</span></td>
-        <td><span class="pill pill-{{ release.kind }}">{{ release.kind }}</span></td>
+        <td><span class="pill pill-{{ release.kind }}">{{ release.kind }}</span>{% if release.prerelease %} <span class="pill pill-off">pre</span>{% endif %}</td>
         <td>
           {% if release.url %}<a href="{{ release.url }}" target="_blank" rel="noopener">{{ release.name or release.tag_name }}</a>
           {% else %}{{ release.name or release.tag_name }}{% endif %}
