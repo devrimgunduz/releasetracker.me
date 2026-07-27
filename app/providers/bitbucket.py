@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from .base import Provider, RepoRef, ReleaseItem, looks_prerelease, register
+from .base import FetchResult, Provider, RepoRef, ReleaseItem, looks_prerelease, register
 
 
 def _parse_ts(value: str | None) -> datetime | None:
@@ -22,15 +22,18 @@ class BitbucketProvider(Provider):
     supports_releases = False  # Bitbucket has no releases API — tags only.
 
     def headers(self, repo: RepoRef) -> dict[str, str]:
-        # Accepts an access token as a bearer credential.
         return {"Authorization": f"Bearer {repo.token}"} if repo.token else {}
 
-    async def list_releases(self, repo: RepoRef) -> list[ReleaseItem]:
-        return []  # not supported by the forge
+    async def list_releases(self, repo: RepoRef, etag: str | None = None) -> FetchResult:
+        return FetchResult([], None, False)  # not supported by the forge
 
-    async def list_tags(self, repo: RepoRef) -> list[ReleaseItem]:
+    async def list_tags(self, repo: RepoRef, etag: str | None = None) -> FetchResult:
         url = f"{self.api_base(repo)}/repositories/{repo.owner}/{repo.name}/refs/tags"
-        data = await self._get_json(url, repo, params={"pagelen": 30, "sort": "-target.date"})
+        data, new_etag, not_modified = await self._fetch(
+            url, repo, etag, {"pagelen": 30, "sort": "-target.date"}
+        )
+        if not_modified:
+            return FetchResult([], new_etag, True)
         web = f"https://bitbucket.org/{repo.owner}/{repo.name}/src"
         items = []
         for t in data.get("values", []):
@@ -46,4 +49,4 @@ class BitbucketProvider(Provider):
                     prerelease=looks_prerelease(t["name"]),
                 )
             )
-        return items
+        return FetchResult(items, new_etag, False)

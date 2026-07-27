@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from .base import Provider, RepoRef, ReleaseItem, looks_prerelease, register
+from .base import FetchResult, Provider, RepoRef, ReleaseItem, looks_prerelease, register
 
 
 def _parse_ts(value: str | None) -> datetime | None:
@@ -26,10 +26,12 @@ class GiteaProvider(Provider):
     def headers(self, repo: RepoRef) -> dict[str, str]:
         return {"Authorization": f"token {repo.token}"} if repo.token else {}
 
-    async def list_releases(self, repo: RepoRef) -> list[ReleaseItem]:
+    async def list_releases(self, repo: RepoRef, etag: str | None = None) -> FetchResult:
         url = f"{self.api_root(repo)}/repos/{repo.owner}/{repo.name}/releases"
-        data = await self._get_json(url, repo, params={"limit": 30})
-        return [
+        data, new_etag, not_modified = await self._fetch(url, repo, etag, {"limit": 30})
+        if not_modified:
+            return FetchResult([], new_etag, True)
+        items = [
             ReleaseItem(
                 kind="release",
                 external_key=str(r["id"]),
@@ -41,12 +43,15 @@ class GiteaProvider(Provider):
             )
             for r in data
         ]
+        return FetchResult(items, new_etag, False)
 
-    async def list_tags(self, repo: RepoRef) -> list[ReleaseItem]:
+    async def list_tags(self, repo: RepoRef, etag: str | None = None) -> FetchResult:
         url = f"{self.api_root(repo)}/repos/{repo.owner}/{repo.name}/tags"
-        data = await self._get_json(url, repo, params={"limit": 30})
+        data, new_etag, not_modified = await self._fetch(url, repo, etag, {"limit": 30})
+        if not_modified:
+            return FetchResult([], new_etag, True)
         web = f"{self.api_base(repo)}/{repo.owner}/{repo.name}/releases/tag"
-        return [
+        items = [
             ReleaseItem(
                 kind="tag",
                 external_key=t["name"],
@@ -57,3 +62,4 @@ class GiteaProvider(Provider):
             )
             for t in data
         ]
+        return FetchResult(items, new_etag, False)

@@ -15,6 +15,14 @@ class Settings(BaseSettings):
     summary_minute: int = Field(default=0, ge=0, le=59)
     timezone: str = "UTC"
 
+    # Applied to any GitHub repo without its own token. Unauthenticated GitHub is
+    # 60 requests/hour per IP; a token raises that to 5,000/hour.
+    default_github_token: str = ""
+    # Safety valves for large repo counts (0 = no cap). Least-recently-polled
+    # repositories are polled first, so a cap rotates fairly across sweeps.
+    max_repos_per_sweep: int = Field(default=0, ge=0)
+    request_delay_seconds: float = Field(default=0.0, ge=0.0)
+
     smtp_host: str = ""
     smtp_port: int = 587
     smtp_username: str = ""

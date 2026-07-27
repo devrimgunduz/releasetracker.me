@@ -1,7 +1,9 @@
 """Importing this package registers every bundled provider."""
 from . import bitbucket, gitea, github, gitlab  # noqa: F401
 from .base import (
+    FetchResult,
     Provider,
+    RateLimited,
     RepoRef,
     ReleaseItem,
     available_providers,
@@ -10,7 +12,9 @@ from .base import (
 )
 
 __all__ = [
+    "FetchResult",
     "Provider",
+    "RateLimited",
     "RepoRef",
     "ReleaseItem",
     "available_providers",

@@ -3,8 +3,9 @@ send_daily_summary() once a day to email everything discovered since the last on
 """
 from __future__ import annotations
 
+import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import httpx
 from sqlalchemy import select
@@ -16,11 +17,12 @@ from .db import SessionFactory
 from .models import NotificationRoute, Release, Repository, TelegramBot, utcnow
 from .notifiers.email import build_digest_html, send_digest
 from .notifiers.telegram import format_message, send_telegram
-from .providers import RepoRef, get_provider
+from .providers import RateLimited, RepoRef, get_provider
 
 log = logging.getLogger("radar.poller")
 
 HTTP_TIMEOUT = httpx.Timeout(20.0)
+_OLDEST = datetime.min.replace(tzinfo=timezone.utc)
 
 TEST_MESSAGE = "\U0001f514 Release Radar test — if you can read this, Telegram delivery works."
 
@@ -77,7 +79,10 @@ async def send_test_notifications() -> None:
 
 
 async def poll_all() -> None:
-    """One full sweep across every repository."""
+    """One full sweep. Polls least-recently-polled repositories first, honours an
+    optional per-sweep cap, and backs off a host for the rest of the sweep once it
+    signals its rate limit is exhausted."""
+    settings = get_settings()
     async with SessionFactory() as session:
         repos = (await session.execute(select(Repository))).scalars().all()
 
@@ -85,34 +90,72 @@ async def poll_all() -> None:
         log.info("poll: no repositories registered")
         return
 
+    repos.sort(key=lambda r: r.last_polled_at or _OLDEST)  # fair rotation
+    if settings.max_repos_per_sweep:
+        repos = repos[: settings.max_repos_per_sweep]
+
+    limited: set[tuple[str, str]] = set()  # (forge_type, base_url) buckets to skip
+
     async with httpx.AsyncClient(timeout=HTTP_TIMEOUT, follow_redirects=True) as client:
         for repo in repos:
+            bucket = (repo.forge_type, repo.base_url)
+            if bucket in limited:
+                continue  # this host is already exhausted this sweep
             try:
-                await _poll_repo(client, repo.id)
+                await _poll_repo(client, repo.id, settings)
+            except RateLimited as rl:
+                limited.add(bucket)
+                until = f" until {rl.reset_at:%H:%M UTC}" if rl.reset_at else ""
+                log.warning(
+                    "rate limited by %s%s — skipping remaining %s repos this sweep",
+                    rl.host, until, repo.forge_type,
+                )
+                await _record_error(repo.id, f"rate limited{until}; will retry next sweep")
             except Exception as exc:  # one bad repo must not stop the sweep
                 log.exception("poll failed for repo id=%s", repo.id)
                 await _record_error(repo.id, str(exc))
 
+            if settings.request_delay_seconds:
+                await asyncio.sleep(settings.request_delay_seconds)
 
-async def _poll_repo(client: httpx.AsyncClient, repo_id: int) -> None:
+
+async def _poll_repo(client: httpx.AsyncClient, repo_id: int, settings: Settings) -> None:
     async with SessionFactory() as session:
         repo = await session.get(Repository, repo_id)
         if repo is None:
             return
 
         provider = get_provider(repo.forge_type, client)
-        ref = RepoRef(
-            owner=repo.owner,
-            name=repo.name,
-            base_url=repo.base_url,
-            token=decrypt(repo.token_enc),
-        )
+        token = decrypt(repo.token_enc)
+        if not token and repo.forge_type == "github":
+            token = settings.default_github_token or None  # shared fallback token
+        ref = RepoRef(owner=repo.owner, name=repo.name, base_url=repo.base_url, token=token)
 
+        # Conditional fetches. A 304 (not_modified) means nothing changed — and,
+        # when authenticated, doesn't even count against the rate limit.
         fetched = []
+        changed = False
         if repo.watch_releases and provider.supports_releases:
-            fetched += await provider.list_releases(ref)
+            res = await provider.list_releases(ref, repo.etag_releases)
+            if not res.not_modified:
+                fetched += res.items
+                repo.etag_releases = res.etag
+                changed = True
         if repo.watch_tags and provider.supports_tags:
-            fetched += await provider.list_tags(ref)
+            res = await provider.list_tags(ref, repo.etag_tags)
+            if not res.not_modified:
+                fetched += res.items
+                repo.etag_tags = res.etag
+                changed = True
+
+        first_run = not repo.seeded
+
+        if not changed and not first_run:
+            # Everything returned 304 — record the poll and move on cheaply.
+            repo.last_polled_at = utcnow()
+            repo.last_error = None
+            await session.commit()
+            return
 
         # What have we already seen for this repo?
         seen_rows = (
@@ -126,7 +169,6 @@ async def _poll_repo(client: httpx.AsyncClient, repo_id: int) -> None:
 
         new_items = [it for it in fetched if (it.kind, it.external_key) not in seen]
 
-        first_run = not repo.seeded
         created: list[Release] = []
         for it in new_items:
             # Excluded pre-releases are still recorded (visible on the dashboard)

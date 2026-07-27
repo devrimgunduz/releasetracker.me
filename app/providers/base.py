@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 import httpx
 
@@ -38,6 +38,24 @@ class ReleaseItem:
 
 
 @dataclass(slots=True)
+class FetchResult:
+    """Outcome of one conditional listing request."""
+
+    items: list[ReleaseItem]
+    etag: str | None = None
+    not_modified: bool = False  # server returned 304; items is empty, reuse stored data
+
+
+class RateLimited(Exception):
+    """Raised when a forge signals its rate limit is exhausted."""
+
+    def __init__(self, host: str, reset_at: datetime | None) -> None:
+        self.host = host
+        self.reset_at = reset_at
+        super().__init__(f"rate limited by {host}" + (f" until {reset_at}" if reset_at else ""))
+
+
+@dataclass(slots=True)
 class RepoRef:
     """Everything a provider needs to identify and reach one repository."""
 
@@ -49,6 +67,16 @@ class RepoRef:
     @property
     def slug(self) -> str:
         return f"{self.owner}/{self.name}"
+
+
+def _reset_at(resp: httpx.Response) -> datetime | None:
+    retry_after = resp.headers.get("retry-after", "")
+    if retry_after.isdigit():
+        return datetime.now(timezone.utc) + timedelta(seconds=int(retry_after))
+    reset = resp.headers.get("x-ratelimit-reset", "")
+    if reset.isdigit():
+        return datetime.fromtimestamp(int(reset), tz=timezone.utc)
+    return None
 
 
 class Provider:
@@ -70,16 +98,38 @@ class Provider:
     def headers(self, repo: RepoRef) -> dict[str, str]:
         return {}
 
-    async def list_releases(self, repo: RepoRef) -> list[ReleaseItem]:
+    async def list_releases(self, repo: RepoRef, etag: str | None = None) -> FetchResult:
         raise NotImplementedError
 
-    async def list_tags(self, repo: RepoRef) -> list[ReleaseItem]:
+    async def list_tags(self, repo: RepoRef, etag: str | None = None) -> FetchResult:
         raise NotImplementedError
 
-    async def _get_json(self, url: str, repo: RepoRef, params: dict | None = None):
-        resp = await self.client.get(url, headers=self.headers(repo), params=params)
+    async def _fetch(
+        self, url: str, repo: RepoRef, etag: str | None = None, params: dict | None = None
+    ) -> tuple[object | None, str | None, bool]:
+        """Conditional GET. Returns (json_or_None, new_etag, not_modified).
+        Raises RateLimited on an exhausted quota so the caller can back off."""
+        headers = dict(self.headers(repo))
+        if etag:
+            headers["If-None-Match"] = etag
+        resp = await self.client.get(url, headers=headers, params=params)
+
+        if resp.status_code == 304:
+            return None, etag, True
+
+        if resp.status_code in (403, 429):
+            remaining = resp.headers.get("x-ratelimit-remaining")
+            retry_after = resp.headers.get("retry-after")
+            message = ""
+            try:
+                message = (resp.json() or {}).get("message", "")
+            except Exception:
+                pass
+            if remaining == "0" or retry_after or "rate limit" in message.lower():
+                raise RateLimited(resp.request.url.host, _reset_at(resp))
+
         resp.raise_for_status()
-        return resp.json()
+        return resp.json(), resp.headers.get("ETag"), False
 
 
 _REGISTRY: dict[str, type[Provider]] = {}
