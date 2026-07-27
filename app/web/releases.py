@@ -25,6 +25,23 @@ def _rtime(r: Release) -> datetime:
     return r.published_at or r.discovered_at
 
 
+def dedupe_versions(releases: list[Release]) -> list[Release]:
+    """Collapse a release and a tag for the same version into one entry, keeping
+    the release (which carries a real published date; a bare tag often doesn't).
+    Entries with no version string are all kept."""
+    best: dict[str, Release] = {}
+    extras: list[Release] = []
+    for r in releases:
+        key = r.tag_name or r.name
+        if not key:
+            extras.append(r)
+            continue
+        current = best.get(key)
+        if current is None or (r.kind == "release" and current.kind != "release"):
+            best[key] = r
+    return list(best.values()) + extras
+
+
 @router.get("/")
 async def dashboard(
     request: Request,
@@ -46,8 +63,10 @@ async def dashboard(
     by_repo: dict[int, list[Release]] = defaultdict(list)
     for r in releases:
         by_repo[r.repository_id].append(r)
-    for rs in by_repo.values():
-        rs.sort(key=_rtime, reverse=True)  # newest first within each repo
+    for rid, rs in by_repo.items():
+        deduped = dedupe_versions(rs)          # release wins over same-version tag
+        deduped.sort(key=_rtime, reverse=True)  # newest first within each repo
+        by_repo[rid] = deduped
 
     shown_repos = [r for r in repos if r.id == repo] if repo else repos
 

@@ -63,6 +63,10 @@ class GitLabProvider(Provider):
                 name=t["name"],
                 tag_name=t["name"],
                 url=f"{web}/{t['name']}",
+                published_at=_parse_ts(
+                    (t.get("commit") or {}).get("created_at")
+                    or (t.get("commit") or {}).get("committed_date")
+                ),
                 prerelease=looks_prerelease(t["name"]),
             )
             for t in data
