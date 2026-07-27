@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Notifications · {{ repo.slug }} · Release Radar{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Notifications</h1>
+    <p class="subtitle">Choose how <span class="slug">{{ repo.slug }}</span> notifies you. Changes take effect on the next release.</p>
+  </div>
+</div>
+
+<div class="card">
+  <form method="post" action="/repositories/{{ repo.id }}/notifications">
+    <label style="font-size:13px;font-weight:600;color:var(--ink-soft);display:block;margin-bottom:8px">Telegram</label>
+    {% if bots %}
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
+      {% for b in bots %}
+      <label class="check">
+        <input type="checkbox" name="bot_ids" value="{{ b.id }}" {{ 'checked' if b.id in attached_bot_ids else '' }}>
+        <strong>{{ b.name }}</strong>
+        {% if b.default_chat_id %}
+          <span class="mono" style="color:var(--ink-faint);font-size:12px">→ {{ b.default_chat_id }}</span>
+        {% else %}
+          <span class="error-text" style="font-size:12px">no default chat — set one on the bot, or add a route on the Notifications page</span>
+        {% endif %}
+      </label>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="hint" style="margin:0 0 16px">No Telegram bots yet — add one on the <a href="/bots">Telegram bots</a> page.</p>
+    {% endif %}
+
+    <label style="font-size:13px;font-weight:600;color:var(--ink-soft);display:block;margin-bottom:8px">Email</label>
+    <label class="check" style="margin-bottom:18px">
+      <input type="checkbox" name="email_digest" value="true" {{ 'checked' if email_on else '' }}>
+      Include in the daily email digest
+    </label>
+
+    <div class="hint" style="margin-bottom:18px">
+      Newly checked bots route to their default chat. For a specific channel, or to
+      pause a route without removing it, use the <a href="/routes">Notifications</a> page —
+      chat overrides and paused routes set there are preserved here.
+    </div>
+
+    <div style="display:flex;gap:10px">
+      <button type="submit">Save notifications</button>
+      <a class="btn btn-ghost" href="/repositories">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

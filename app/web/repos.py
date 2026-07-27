@@ -130,3 +130,95 @@ async def delete_repo(
         await session.commit()
         flash(request, f"Stopped watching {repo.slug}.", "success")
     return redirect("/repositories")
+
+
+@router.get("/{repo_id}/notifications")
+async def edit_notifications(
+    repo_id: int,
+    request: Request,
+    user=Depends(current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    repo = await session.get(Repository, repo_id)
+    if repo is None:
+        flash(request, "Repository not found.", "error")
+        return redirect("/repositories")
+
+    bots = (await session.execute(select(TelegramBot).order_by(TelegramBot.name))).scalars().all()
+    routes = (
+        await session.execute(
+            select(NotificationRoute).where(NotificationRoute.repository_id == repo_id)
+        )
+    ).scalars().all()
+
+    # A box is checked when a route to that bot / an email route exists at all,
+    # regardless of paused state — so opening and saving never silently changes it.
+    attached_bot_ids = {r.bot_id for r in routes if r.channel_type == "telegram" and r.bot_id}
+    email_on = any(r.channel_type == "email" for r in routes)
+
+    return render(
+        request,
+        "repo_notifications.html",
+        user,
+        repo=repo,
+        bots=bots,
+        attached_bot_ids=attached_bot_ids,
+        email_on=email_on,
+    )
+
+
+@router.post("/{repo_id}/notifications")
+async def save_notifications(
+    repo_id: int,
+    request: Request,
+    bot_ids: list[int] = Form(default=[]),
+    email_digest: bool = Form(False),
+    user=Depends(current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    repo = await session.get(Repository, repo_id)
+    if repo is None:
+        flash(request, "Repository not found.", "error")
+        return redirect("/repositories")
+
+    valid_bot_ids = set((await session.execute(select(TelegramBot.id))).scalars().all())
+    desired = {b for b in bot_ids if b in valid_bot_ids}
+
+    routes = (
+        await session.execute(
+            select(NotificationRoute).where(NotificationRoute.repository_id == repo_id)
+        )
+    ).scalars().all()
+
+    existing_by_bot: dict[int, list[NotificationRoute]] = {}
+    existing_email: list[NotificationRoute] = []
+    for r in routes:
+        if r.channel_type == "telegram" and r.bot_id is not None:
+            existing_by_bot.setdefault(r.bot_id, []).append(r)
+        elif r.channel_type == "email":
+            existing_email.append(r)
+
+    # Reconcile by existence only: never touch enabled/paused or chat_id of a
+    # route that stays. Unchecking a bot removes its route(s); checking a new
+    # one creates a route to that bot's default chat.
+    for bot_id, rs in existing_by_bot.items():
+        if bot_id not in desired:
+            for r in rs:
+                await session.delete(r)
+    for bot_id in desired:
+        if bot_id not in existing_by_bot:
+            session.add(
+                NotificationRoute(
+                    repository_id=repo_id, channel_type="telegram", bot_id=bot_id, enabled=True
+                )
+            )
+
+    if email_digest and not existing_email:
+        session.add(NotificationRoute(repository_id=repo_id, channel_type="email", enabled=True))
+    elif not email_digest and existing_email:
+        for r in existing_email:
+            await session.delete(r)
+
+    await session.commit()
+    flash(request, f"Notifications updated for {repo.slug}.", "success")
+    return redirect("/repositories")
