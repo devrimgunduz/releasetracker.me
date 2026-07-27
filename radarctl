@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# radarctl — operator helper for Release Radar.
+# Runs from anywhere; resolves its own location as the app directory.
+# App commands run as the service user (default: radar); systemd commands as-is.
+set -euo pipefail
+
+APP_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+VENV="$APP_DIR/.venv/bin"
+SERVICE_USER="${RADAR_USER:-radar}"
+WEB_SVC="release-radar-web"
+WORKER_SVC="release-radar-worker"
+
+# Run an app command as the service user (or directly if already that user).
+app() {
+  if [ "$(id -un)" = "$SERVICE_USER" ]; then
+    ( cd "$APP_DIR" && "$@" )
+  else
+    sudo -u "$SERVICE_USER" bash -c 'cd "$1" && shift && exec "$@"' _ "$APP_DIR" "$@"
+  fi
+}
+
+usage() {
+  cat <<EOF
+radarctl — Release Radar operator commands
+
+  radarctl migrate                 Apply database migrations (alembic upgrade head)
+  radarctl create-admin USER PASS  Create or promote an admin user
+  radarctl poll                    Run one poll sweep now
+  radarctl summary                 Send the daily email digest now
+  radarctl test-telegram           Send a test message down every Telegram route
+  radarctl config                  Print the resolved DATABASE_URL (to debug .env)
+
+  radarctl start | stop | restart  Both systemd services
+  radarctl status                  Status of both services
+  radarctl logs [web|worker]       Follow logs (default: worker)
+
+App dir: $APP_DIR   Service user: $SERVICE_USER
+EOF
+}
+
+cmd="${1:-help}"; shift || true
+case "$cmd" in
+  migrate)       app "$VENV/alembic" upgrade head ;;
+  create-admin)  [ $# -eq 2 ] || { echo "usage: radarctl create-admin USER PASS" >&2; exit 2; }
+                 app "$VENV/python" -m scripts.create_admin "$1" "$2" ;;
+  poll)          app "$VENV/python" -m scripts.run poll ;;
+  summary)       app "$VENV/python" -m scripts.run summary ;;
+  test-telegram) app "$VENV/python" -m scripts.run test-telegram ;;
+  config)        app "$VENV/python" -c "from app.config import get_settings; print(get_settings().database_url)" ;;
+
+  start)         sudo systemctl start   "$WEB_SVC" "$WORKER_SVC" ;;
+  stop)          sudo systemctl stop    "$WEB_SVC" "$WORKER_SVC" ;;
+  restart)       sudo systemctl restart "$WEB_SVC" "$WORKER_SVC" ;;
+  status)        sudo systemctl status --no-pager "$WEB_SVC" "$WORKER_SVC" ;;
+  logs)          case "${1:-worker}" in
+                   web)    sudo journalctl -u "$WEB_SVC" -f ;;
+                   worker) sudo journalctl -u "$WORKER_SVC" -f ;;
+                   *) echo "usage: radarctl logs [web|worker]" >&2; exit 2 ;;
+                 esac ;;
+
+  help|-h|--help) usage ;;
+  *) echo "unknown command: $cmd" >&2; usage; exit 2 ;;
+esac

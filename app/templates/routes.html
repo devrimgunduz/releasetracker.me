@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Notifications · Release Radar{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Notifications</h1><p class="subtitle">Route each repository to a Telegram channel, the daily email, or both.</p></div></div>
+
+<div class="card">
+  <h2>Add a route</h2>
+  <form method="post" action="/routes/add">
+    <div class="form-grid">
+      <div class="field">
+        <label for="repository_id">Repository</label>
+        <select id="repository_id" name="repository_id" required>
+          {% for r in repos %}<option value="{{ r.id }}">{{ r.slug }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="channel_type">Deliver via</label>
+        <select id="channel_type" name="channel_type" onchange="onChannelChange()">
+          <option value="telegram">Telegram (immediate)</option>
+          <option value="email">Daily email digest</option>
+        </select>
+      </div>
+    </div>
+    <div id="telegramFields">
+      <div class="form-grid">
+        <div class="field">
+          <label for="bot_id">Bot</label>
+          <select id="bot_id" name="bot_id">
+            <option value="">— select a bot —</option>
+            {% for b in bots %}<option value="{{ b.id }}">{{ b.name }}{% if b.default_chat_id %} ({{ b.default_chat_id }}){% endif %}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label for="chat_id">Chat / channel ID <span class="hint">optional — overrides the bot's default</span></label>
+          <input type="text" id="chat_id" name="chat_id" placeholder="-1001234567890">
+        </div>
+      </div>
+    </div>
+    {% if not repos %}<p class="error-text">Add a repository first.</p>{% endif %}
+    {% if not bots %}<p class="error-text" id="noBots">Add a Telegram bot to create Telegram routes.</p>{% endif %}
+    <button type="submit" {{ 'disabled' if not repos else '' }}>Add route</button>
+  </form>
+</div>
+
+<div class="card card-tight">
+  {% if routes %}
+  <table>
+    <thead><tr><th>Repository</th><th>Channel</th><th>Destination</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      {% for route, repo, bot in routes %}
+      <tr>
+        <td><span class="slug">{{ repo.slug }}</span></td>
+        <td>
+          {% if route.channel_type == 'telegram' %}<span class="pill pill-release">Telegram</span>
+          {% else %}<span class="pill pill-email">Daily email</span>{% endif %}
+        </td>
+        <td class="mono" style="color:var(--ink-soft);font-size:13px">
+          {% if route.channel_type == 'telegram' %}
+            {{ bot.name if bot else '⚠ bot deleted' }}{% if route.chat_id %} → {{ route.chat_id }}{% elif bot and bot.default_chat_id %} → {{ bot.default_chat_id }}{% endif %}
+          {% else %}configured recipients{% endif %}
+        </td>
+        <td>
+          <form method="post" action="/routes/{{ route.id }}/toggle" class="inline-form">
+            <button type="submit" class="btn-link btn-sm">
+              {% if route.enabled %}<span class="pill pill-release">enabled</span>{% else %}<span class="pill pill-off">paused</span>{% endif %}
+            </button>
+          </form>
+        </td>
+        <td style="text-align:right">
+          <form method="post" action="/routes/{{ route.id }}/delete" class="inline-form" onsubmit="return confirm('Remove this route?')">
+            <button type="submit" class="btn-danger btn-sm">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty"><p><strong>No routes yet.</strong></p><p>A repository won't notify anyone until it has at least one route.</p></div>
+  {% endif %}
+</div>
+
+<script>
+  function onChannelChange() {
+    var isTelegram = document.getElementById('channel_type').value === 'telegram';
+    document.getElementById('telegramFields').style.display = isTelegram ? '' : 'none';
+  }
+  onChannelChange();
+</script>
+{% endblock %}

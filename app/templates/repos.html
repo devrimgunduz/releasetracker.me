@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Repositories · Release Radar{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Repositories</h1><p class="subtitle">The projects the radar watches for new releases and tags.</p></div></div>
+
+<div class="card">
+  <h2>Add a repository</h2>
+  <form method="post" action="/repositories/add">
+    <div class="form-grid">
+      <div class="field">
+        <label for="forge_type">Forge</label>
+        <select id="forge_type" name="forge_type" onchange="onForgeChange()">
+          {% for p in providers %}
+          <option value="{{ p.key }}"
+                  data-requires-url="{{ '1' if p.requires_base_url else '0' }}"
+                  data-tags-only="{{ '1' if not p.supports_releases else '0' }}">{{ p.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field" id="baseUrlField" style="display:none">
+        <label for="base_url">Instance URL <span class="hint">e.g. https://codeberg.org</span></label>
+        <input type="text" id="base_url" name="base_url" placeholder="https://git.example.com">
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="field">
+        <label for="owner">Owner / group / workspace</label>
+        <input type="text" id="owner" name="owner" placeholder="prometheus" required>
+      </div>
+      <div class="field">
+        <label for="name">Repository</label>
+        <input type="text" id="name" name="name" placeholder="prometheus" required>
+      </div>
+    </div>
+    <div class="field">
+      <label for="token">Access token <span class="hint">optional — private repos or higher rate limits. Stored encrypted.</span></label>
+      <input type="password" id="token" name="token" autocomplete="off">
+    </div>
+    <div class="form-row" style="margin:6px 0 18px">
+      <label class="check"><input type="checkbox" name="watch_releases" value="true" checked> Watch releases</label>
+      <label class="check"><input type="checkbox" name="watch_tags" value="true"> Watch tags <span id="tagsHint" class="hint" style="display:none">(Bitbucket has no releases — tags only)</span></label>
+    </div>
+    <button type="submit">Add repository</button>
+  </form>
+</div>
+
+<div class="card card-tight">
+  {% if repos %}
+  <table>
+    <thead><tr><th>Repository</th><th>Forge</th><th>Watching</th><th>Last poll</th><th></th></tr></thead>
+    <tbody>
+      {% for r in repos %}
+      <tr>
+        <td>
+          <span class="slug">{{ r.slug }}</span>
+          {% if r.base_url %}<div class="mono" style="font-size:11px;color:var(--ink-faint)">{{ r.base_url }}</div>{% endif %}
+          {% if r.last_error %}<div class="error-text" title="{{ r.last_error }}">last error: {{ r.last_error[:80] }}</div>{% endif %}
+        </td>
+        <td><span class="pill pill-forge">{{ r.forge_type }}</span></td>
+        <td>
+          {% if r.watch_releases %}<span class="pill pill-release">releases</span>{% endif %}
+          {% if r.watch_tags %}<span class="pill pill-tag">tags</span>{% endif %}
+        </td>
+        <td class="mono" style="color:var(--ink-soft);font-size:12px">
+          {{ r.last_polled_at.strftime('%Y-%m-%d %H:%M') if r.last_polled_at else 'never' }}
+          {% if not r.seeded %}<span class="pill pill-off">baseline pending</span>{% endif %}
+        </td>
+        <td style="text-align:right">
+          <form method="post" action="/repositories/{{ r.id }}/delete" class="inline-form"
+                onsubmit="return confirm('Stop watching {{ r.slug }}? Its release history will be removed.')">
+            <button type="submit" class="btn-danger btn-sm">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty"><p><strong>No repositories yet.</strong></p><p>Add one above to start watching.</p></div>
+  {% endif %}
+</div>
+
+<script>
+  function onForgeChange() {
+    var sel = document.getElementById('forge_type');
+    var opt = sel.options[sel.selectedIndex];
+    document.getElementById('baseUrlField').style.display = opt.dataset.requiresUrl === '1' ? '' : 'none';
+    document.getElementById('base_url').required = opt.dataset.requiresUrl === '1';
+    document.getElementById('tagsHint').style.display = opt.dataset.tagsOnly === '1' ? '' : 'none';
+  }
+  onForgeChange();
+</script>
+{% endblock %}

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in · Release Radar</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="login-wrap">
+  <div class="login-card">
+    <div class="brand">
+      {% include "_mark.html" %}
+      <div class="brand-name">Release Radar<small>watchtower</small></div>
+    </div>
+    {% if flashes %}
+    <div class="flashes">
+      {% for f in flashes %}<div class="flash flash-{{ f.category }}">{{ f.message }}</div>{% endfor %}
+    </div>
+    {% endif %}
+    <form method="post" action="/login">
+      <div class="field">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" autocomplete="username" autofocus required>
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" autocomplete="current-password" required>
+      </div>
+      <button type="submit" style="width:100%;justify-content:center">Sign in</button>
+    </form>
+  </div>
+</div>
+</body>
+</html>

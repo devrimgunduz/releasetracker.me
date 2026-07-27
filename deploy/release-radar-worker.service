@@ -1,0 +1,18 @@
+[Unit]
+Description=Release Radar — poller & daily summary worker
+After=network.target postgresql-18.service
+Wants=postgresql-18.service
+
+[Service]
+Type=simple
+User=radar
+Group=radar
+WorkingDirectory=/opt/releaseradar
+EnvironmentFile=/opt/releaseradar/.env
+# Exactly one instance of this service should run, ever. It owns the schedule.
+ExecStart=/opt/releaseradar/.venv/bin/python -m app.worker
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Telegram bots · Release Radar{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Telegram bots</h1><p class="subtitle">Register one or more bots so different repositories can post to different channels.</p></div></div>
+
+<div class="card">
+  <h2>Add a bot</h2>
+  <form method="post" action="/bots/add">
+    <div class="field">
+      <label for="name">Label <span class="hint">just for you — e.g. “Infra alerts”</span></label>
+      <input type="text" id="name" name="name" required>
+    </div>
+    <div class="field">
+      <label for="token">Bot token <span class="hint">from @BotFather. Stored encrypted.</span></label>
+      <input type="password" id="token" name="token" autocomplete="off" required>
+    </div>
+    <div class="field">
+      <label for="default_chat_id">Default chat / channel ID <span class="hint">optional — e.g. -1001234567890. The bot must be an admin of the channel.</span></label>
+      <input type="text" id="default_chat_id" name="default_chat_id">
+    </div>
+    <button type="submit">Add bot</button>
+  </form>
+</div>
+
+<div class="card card-tight">
+  {% if bots %}
+  <table>
+    <thead><tr><th>Label</th><th>Default chat</th><th>Added</th><th></th></tr></thead>
+    <tbody>
+      {% for b in bots %}
+      <tr>
+        <td><strong>{{ b.name }}</strong></td>
+        <td class="mono" style="color:var(--ink-soft)">{{ b.default_chat_id or '—' }}</td>
+        <td class="mono" style="color:var(--ink-soft);font-size:12px">{{ b.created_at.strftime('%Y-%m-%d') }}</td>
+        <td style="text-align:right">
+          <form method="post" action="/bots/{{ b.id }}/delete" class="inline-form"
+                onsubmit="return confirm('Remove bot “{{ b.name }}”? Routes using it will stop delivering.')">
+            <button type="submit" class="btn-danger btn-sm">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty"><p><strong>No bots yet.</strong></p><p>Create one with @BotFather in Telegram, then add its token here.</p></div>
+  {% endif %}
+</div>
+{% endblock %}

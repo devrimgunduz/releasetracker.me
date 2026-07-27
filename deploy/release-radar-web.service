@@ -1,0 +1,19 @@
+[Unit]
+Description=Release Radar — web UI
+After=network.target postgresql-18.service
+Wants=postgresql-18.service
+
+[Service]
+Type=simple
+User=radar
+Group=radar
+WorkingDirectory=/opt/releaseradar
+EnvironmentFile=/opt/releaseradar/.env
+# One worker keeps things simple. Scale with more workers if needed — the
+# scheduler lives in the separate worker service, so extra web workers are safe.
+ExecStart=/opt/releaseradar/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8080
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

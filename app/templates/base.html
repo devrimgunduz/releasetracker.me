@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Release Radar{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      {% include "_mark.html" %}
+      <div class="brand-name">Release Radar<small>watchtower</small></div>
+    </div>
+    {% set path = request.url.path %}
+    <a class="nav-link {{ 'active' if path == '/' else '' }}" href="/">Dashboard</a>
+    <a class="nav-link {{ 'active' if path.startswith('/repositories') else '' }}" href="/repositories">Repositories</a>
+    <a class="nav-link {{ 'active' if path.startswith('/bots') else '' }}" href="/bots">Telegram bots</a>
+    <a class="nav-link {{ 'active' if path.startswith('/routes') else '' }}" href="/routes">Notifications</a>
+    {% if user and user.is_admin %}
+    <a class="nav-link {{ 'active' if path.startswith('/users') else '' }}" href="/users">Users</a>
+    {% endif %}
+    <div class="signout">
+      <div style="font-size:12px;color:#8595a0;padding:0 8px 8px">{{ user.username }}{% if user.is_admin %} · admin{% endif %}</div>
+      <form method="post" action="/logout"><button type="submit">Sign out</button></form>
+    </div>
+  </aside>
+
+  <main class="main">
+    {% if flashes %}
+    <div class="flashes">
+      {% for f in flashes %}
+      <div class="flash flash-{{ f.category }}">{{ f.message }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+</body>
+</html>
