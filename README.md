@@ -1,5 +1,7 @@
 # Release Radar
 
+[![CI](https://github.com/devrimgunduz/releasetracker.me/actions/workflows/ci.yml/badge.svg)](https://github.com/devrimgunduz/releasetracker.me/actions/workflows/ci.yml)
+
 Self-hosted watchtower for software releases. Register repositories from
 **GitHub, GitLab, Gitea/Forgejo, or Bitbucket**; a poller checks them on a
 schedule and sends **Telegram** notifications the moment something new appears,
@@ -388,8 +390,20 @@ app/
 migrations/          Alembic
 deploy/              systemd units + fail2ban filter/jail
 scripts/             create_admin, run (one-off poll/summary)
+tests/               pytest suite (repo-URL parser)
 radarctl             operator helper (migrate, poll, logs, …)
 ```
+
+## Tests
+
+```bash
+pip install -r requirements.txt -r requirements-dev.txt
+pytest
+```
+
+The current suite covers the repository-URL parser (`app/repo_url.py`) — every
+accepted URL shape and the error cases. It's a pure unit test with no database or
+config dependency, so it runs anywhere, including CI.
 
 ## Notes
 
@@ -397,3 +411,8 @@ radarctl             operator helper (migrate, poll, logs, …)
 - API endpoint shapes and rate limits change over time; verify against each
   forge's current API docs if a provider starts returning errors (the repo's
   `last error` is shown on the Repositories page).
+
+## License
+
+Released under the [PostgreSQL License](LICENSE) — a permissive, OSI-approved
+license (functionally similar to MIT/BSD). Copyright (c) 2026, Devrim Gunduz.
