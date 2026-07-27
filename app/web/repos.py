@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..crypto import encrypt
 from ..db import get_session
-from ..models import Repository
+from ..models import NotificationRoute, Repository, TelegramBot
 from ..providers import available_providers
 from ..repo_url import RepoURLError, parse_repo_url
 from .deps import current_user, flash, redirect, render
@@ -24,12 +24,14 @@ async def list_repos(
     repos = (
         await session.execute(select(Repository).order_by(Repository.owner, Repository.name))
     ).scalars().all()
+    bots = (await session.execute(select(TelegramBot).order_by(TelegramBot.name))).scalars().all()
     return render(
         request,
         "repos.html",
         user,
         repos=repos,
         providers=available_providers(),
+        bots=bots,
     )
 
 
@@ -41,6 +43,8 @@ async def add_repo(
     token: str = Form(""),
     watch_releases: bool = Form(False),
     watch_tags: bool = Form(False),
+    bot_ids: list[int] = Form(default=[]),
+    email_digest: bool = Form(False),
     user=Depends(current_user),
     session: AsyncSession = Depends(get_session),
 ):
@@ -71,9 +75,43 @@ async def add_repo(
         flash(request, "That repository is already registered.", "error")
         return redirect("/repositories")
 
+    # Create the notification routes chosen on the form. Each checked bot becomes
+    # a Telegram route delivering to that bot's default chat (edit the chat per
+    # route later on the Notifications page). email_digest adds an email route.
+    valid_bot_ids: set[int] = set(
+        (await session.execute(select(TelegramBot.id))).scalars().all()
+    )
+    telegram_routes = 0
+    for bot_id in bot_ids:
+        if bot_id not in valid_bot_ids:
+            continue  # ignore stale/forged ids
+        session.add(
+            NotificationRoute(
+                repository_id=repo.id,
+                channel_type="telegram",
+                bot_id=bot_id,
+                enabled=True,
+            )
+        )
+        telegram_routes += 1
+    if email_digest:
+        session.add(
+            NotificationRoute(repository_id=repo.id, channel_type="email", enabled=True)
+        )
+    if telegram_routes or email_digest:
+        await session.commit()
+
+    channels = []
+    if telegram_routes:
+        channels.append(f"{telegram_routes} Telegram route(s)")
+    if email_digest:
+        channels.append("the daily email")
+    tail = f" Notifying via {' and '.join(channels)}." if channels else (
+        " No notifications set yet — add some on the Notifications page."
+    )
     flash(
         request,
-        f"Now watching {repo.slug} on {forge}. Baseline captured on the first poll.",
+        f"Now watching {repo.slug} on {forge}. Baseline captured on the first poll.{tail}",
         "success",
     )
     return redirect("/repositories")

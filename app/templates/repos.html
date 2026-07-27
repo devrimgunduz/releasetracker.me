@@ -35,6 +35,30 @@
       <label class="check"><input type="checkbox" name="watch_releases" value="true" checked> Watch releases</label>
       <label class="check"><input type="checkbox" name="watch_tags" value="true"> Watch tags</label>
     </div>
+
+    <div style="border-top:1px solid var(--line);margin:4px 0 16px;padding-top:16px">
+      <label style="font-size:13px;font-weight:600;color:var(--ink-soft);display:block;margin-bottom:8px">Notify (optional)</label>
+      {% if bots %}
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px">
+        {% for b in bots %}
+        <label class="check">
+          <input type="checkbox" name="bot_ids" value="{{ b.id }}">
+          Telegram: <strong>{{ b.name }}</strong>
+          {% if b.default_chat_id %}
+            <span class="mono" style="color:var(--ink-faint);font-size:12px">→ {{ b.default_chat_id }}</span>
+          {% else %}
+            <span class="error-text" style="font-size:12px">no default chat — set one on the bot, or add a route later</span>
+          {% endif %}
+        </label>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="hint" style="margin:0 0 10px">No Telegram bots yet — add one on the <a href="/bots">Telegram bots</a> page.</p>
+      {% endif %}
+      <label class="check"><input type="checkbox" name="email_digest" value="true"> Include in the daily email digest</label>
+      <div class="hint" style="margin-top:6px">Checked Telegram bots deliver to their default chat. Fine-tune or add per-channel routes on the <a href="/routes">Notifications</a> page.</div>
+    </div>
+
     <button type="submit">Add repository</button>
   </form>
 </div>
