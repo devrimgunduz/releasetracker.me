@@ -32,7 +32,8 @@
   {% set repo = item.repo %}
   <div class="card repo-card">
     <div class="repo-head">
-      <span class="slug">{{ repo.slug }}</span>
+      {% if repo.web_url %}<a class="slug" href="{{ repo.web_url }}" target="_blank" rel="noopener">{{ repo.slug }}</a>
+      {% else %}<span class="slug">{{ repo.slug }}</span>{% endif %}
       <span class="on-forge">on {{ forge_labels.get(repo.forge_type, repo.forge_type) }}</span>
       {% if not repo.include_prereleases %}<span class="pill pill-off">no pre-releases</span>{% endif %}
       {% if item.releases and item.releases[0].published_at %}

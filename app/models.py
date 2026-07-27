@@ -73,6 +73,20 @@ class Repository(Base):
     def slug(self) -> str:
         return f"{self.owner}/{self.name}"
 
+    @property
+    def web_url(self) -> str:
+        """Browser URL for the repo, derived from forge + base_url + slug.
+        Public hosts use their canonical domain; self-hosted uses base_url."""
+        if self.forge_type == "github":
+            root = self.base_url or "https://github.com"
+        elif self.forge_type == "gitlab":
+            root = self.base_url or "https://gitlab.com"
+        elif self.forge_type == "bitbucket":
+            root = self.base_url or "https://bitbucket.org"
+        else:  # gitea / forgejo are self-hosted; base_url is the site root
+            root = self.base_url or ""
+        return f"{root.rstrip('/')}/{self.owner}/{self.name}" if root else ""
+
 
 class TelegramBot(Base):
     __tablename__ = "telegram_bots"
