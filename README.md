@@ -37,8 +37,16 @@ tags-only — the UI reflects this automatically.)
 are recorded as a baseline with no notifications, so you aren't flooded with its
 whole history. You get notified from the next new release onward.
 
+**Rate-limit friendly.** The poller sends conditional requests (`ETag` /
+`If-None-Match`); unchanged repositories return a `304` that, when authenticated,
+costs nothing against the rate limit. It also backs off a host for the rest of a
+sweep once that host reports its quota is exhausted, polls least-recently-polled
+repos first, and can be capped per sweep. Set `DEFAULT_GITHUB_TOKEN` — GitHub
+allows only 60 requests/hour per IP unauthenticated versus 5,000 with a token.
+
 **Secrets** (forge tokens, bot tokens) are encrypted at rest with a key derived
-from `SECRET_KEY`.
+from `SECRET_KEY`. (`DEFAULT_GITHUB_TOKEN`, being an env var, is the exception —
+it lives in `.env` as plain text, so keep it read-only.)
 
 ---
 
@@ -126,6 +134,7 @@ radarctl migrate                     # alembic upgrade head
 radarctl create-admin admin 's3cret' # create/promote an admin
 radarctl poll                        # run one poll sweep now
 radarctl summary                     # send the daily digest now
+radarctl test-telegram               # send a test message down every Telegram route
 radarctl config                      # print the resolved DATABASE_URL (debug .env)
 radarctl status                      # systemd status of both services
 radarctl logs worker                 # follow the worker journal (or: logs web)
@@ -313,14 +322,23 @@ watching `fail2ban-client status release-radar`.
 1. **Telegram bots** — create a bot with @BotFather, add it to your channel as an
    admin, and register its token here. Give it a default chat/channel ID (looks
    like `-1001234567890`) or set one per route.
-2. **Repositories** — add the ones to watch. For Gitea/Forgejo, supply the
-   instance URL. A token is optional but recommended (private repos, and much
-   higher rate limits — GitHub allows 60 req/hr unauthenticated vs 5000 with a token).
-3. **Notifications** — route each repository to a Telegram channel (immediate) or
-   the daily email digest, or both. A repository notifies no one until it has a route.
-4. **Dashboard** — browse everything discovered. An amber pulsing dot marks items
-   still awaiting Telegram delivery; teal means delivered. **Poll now** triggers a
-   sweep without waiting for the schedule.
+2. **Repositories** — paste a repository URL (e.g.
+   `https://github.com/owner/repo`); the forge, owner, and name are parsed out,
+   and public hosts are detected automatically. Choose whether to watch releases
+   and/or tags and whether to exclude pre-releases, and tick which bots (and the
+   email digest) to notify — all on the add form. A per-repo token is optional but
+   recommended for private repos; for public GitHub at scale, set a shared
+   `DEFAULT_GITHUB_TOKEN` instead (60 req/hr unauthenticated vs 5,000 with a token).
+3. **Notifications** — a repository notifies no one until it has a route. Manage a
+   repo's routing any time via the **Notifications** button on its row (check the
+   bots and/or daily email), or use the **Notifications** page for per-channel chat
+   overrides and pausing individual routes. Toggle **pre-releases** per repo right
+   on the Repositories page.
+4. **Dashboard** — one card per repository listing its releases inline, newest
+   first, with a **more…** link to expand a repo's full history. Sort by *recently
+   updated*, *recently added*, or *name*. An amber dot marks a release still
+   awaiting Telegram delivery; a **pre** tag marks a pre-release. **Poll now**
+   triggers a sweep without waiting for the schedule.
 
 ---
 
@@ -331,6 +349,13 @@ All settings live in `.env` (see `.env.example`). Notable ones:
 - `POLL_INTERVAL_MINUTES` — how often the worker sweeps (default 30).
 - `SUMMARY_HOUR` / `SUMMARY_MINUTE` / `TIMEZONE` — when the daily email goes out.
 - `SMTP_*` — daily digest delivery; blank `SMTP_HOST` disables email.
+- `DEFAULT_GITHUB_TOKEN` — applied to any GitHub repo without its own token.
+  Strongly recommended: raises the limit from 60 to 5,000 requests/hour and makes
+  conditional `304`s free. A read-only, public-repos fine-grained token is enough.
+- `MAX_REPOS_PER_SWEEP` — cap repos polled per sweep (0 = all). When capped,
+  least-recently-polled repos go first, rotating fairly across sweeps.
+- `REQUEST_DELAY_SECONDS` — pause between requests to avoid secondary rate limits
+  on large batches (default 0).
 
 The daily email goes to `SMTP_RECIPIENTS` (a shared list). Telegram is where
 per-repository, per-channel routing lives. If you later want per-recipient email
@@ -344,7 +369,7 @@ rows per repository — extend the digest query to group by recipient.
 Create `app/providers/yourforge.py`:
 
 ```python
-from .base import Provider, RepoRef, ReleaseItem, register
+from .base import FetchResult, Provider, RepoRef, ReleaseItem, register
 
 @register
 class YourForgeProvider(Provider):
@@ -355,17 +380,23 @@ class YourForgeProvider(Provider):
     def headers(self, repo: RepoRef) -> dict[str, str]:
         return {"Authorization": f"Bearer {repo.token}"} if repo.token else {}
 
-    async def list_releases(self, repo: RepoRef) -> list[ReleaseItem]:
-        data = await self._get_json(f"{self.api_base(repo)}/...", repo)
-        return [ReleaseItem(kind="release", external_key=str(r["id"]),
-                            name=r["name"], tag_name=r["tag"], url=r["url"]) for r in data]
+    async def list_releases(self, repo: RepoRef, etag: str | None = None) -> FetchResult:
+        # _fetch does the conditional GET: returns (json, new_etag, not_modified)
+        # and raises RateLimited on an exhausted quota.
+        data, new_etag, not_modified = await self._fetch(f"{self.api_base(repo)}/...", repo, etag)
+        if not_modified:
+            return FetchResult([], new_etag, True)
+        items = [ReleaseItem(kind="release", external_key=str(r["id"]),
+                             name=r["name"], tag_name=r["tag"], url=r["url"]) for r in data]
+        return FetchResult(items, new_etag, False)
 
-    async def list_tags(self, repo: RepoRef) -> list[ReleaseItem]:
+    async def list_tags(self, repo: RepoRef, etag: str | None = None) -> FetchResult:
         ...
 ```
 
 Import it in `app/providers/__init__.py`. It now appears in the UI dropdown and
-the poller uses it. Nothing else changes.
+the poller uses it — conditional requests and rate-limit backoff come for free
+via `_fetch`. Nothing else changes.
 
 ---
 
@@ -390,7 +421,7 @@ app/
 migrations/          Alembic
 deploy/              systemd units + fail2ban filter/jail
 scripts/             create_admin, run (one-off poll/summary)
-tests/               pytest suite (repo-URL parser)
+tests/               pytest suite (URL parser, provider HTTP layer)
 radarctl             operator helper (migrate, poll, logs, …)
 ```
 
@@ -401,9 +432,10 @@ pip install -r requirements.txt -r requirements-dev.txt
 pytest
 ```
 
-The current suite covers the repository-URL parser (`app/repo_url.py`) — every
-accepted URL shape and the error cases. It's a pure unit test with no database or
-config dependency, so it runs anywhere, including CI.
+The suite covers the repository-URL parser (`app/repo_url.py`) — every accepted
+URL shape and the error cases — and the provider HTTP layer (conditional `304`
+handling, ETag capture, and rate-limit detection via a mock transport). All are
+pure unit tests with no database or network, so they run anywhere, including CI.
 
 ## Notes
 
