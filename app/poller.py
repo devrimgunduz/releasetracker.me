@@ -213,6 +213,31 @@ async def _dispatch_telegram(client: httpx.AsyncClient, release_id: int) -> None
         row = await session.get(Release, release_id)
         if row is None or row.notified:
             return
+
+        # One announcement per version: a new version usually appears as both a
+        # release and a tag. Releases are dispatched before tags in a sweep, so if
+        # another entry for this version was already announced (the release, or an
+        # earlier poll), suppress this one. Mark it handled so it won't retry.
+        version = row.tag_name or row.name
+        if version:
+            duplicate = (
+                await session.execute(
+                    select(Release.id)
+                    .where(
+                        Release.repository_id == row.repository_id,
+                        Release.id != row.id,
+                        Release.tag_name == version,
+                        Release.notified.is_(True),
+                    )
+                    .limit(1)
+                )
+            ).first()
+            if duplicate:
+                row.notified = True
+                await session.commit()
+                log.info("suppressing duplicate notification for version %s (already announced)", version)
+                return
+
         repo = await session.get(Repository, row.repository_id)
 
         routes = (
@@ -288,24 +313,33 @@ async def send_daily_summary(settings: Settings | None = None) -> None:
             )
         ).all()
 
-        # Deduplicate (a repo may match once per email route) and collect payload.
+        # A repo may match once per email route, and a version may exist as both a
+        # release and a tag — collapse to one line per version (release preferred),
+        # while marking every matched row summarized so nothing lingers or repeats.
         seen_ids: set[int] = set()
-        items = []
         release_objs = []
+        best: dict[tuple[int, str], tuple] = {}
         for release, repo in rows:
             if release.id in seen_ids:
                 continue
             seen_ids.add(release.id)
             release_objs.append(release)
-            items.append(
-                {
-                    "repo_slug": repo.slug,
-                    "kind": release.kind,
-                    "name": release.name or release.tag_name,
-                    "url": release.url,
-                    "published_at": release.published_at,
-                }
-            )
+            version = release.tag_name or release.name
+            key = (repo.id, version)
+            current = best.get(key)
+            if current is None or (release.kind == "release" and current[0].kind != "release"):
+                best[key] = (release, repo)
+
+        items = [
+            {
+                "repo_slug": repo.slug,
+                "kind": release.kind,
+                "name": release.name or release.tag_name,
+                "url": release.url,
+                "published_at": release.published_at,
+            }
+            for release, repo in best.values()
+        ]
 
         if not items:
             log.info("summary: nothing new to report")
