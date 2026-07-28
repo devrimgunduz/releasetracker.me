@@ -3,7 +3,8 @@
 [![CI](https://github.com/devrimgunduz/releasetracker.me/actions/workflows/ci.yml/badge.svg)](https://github.com/devrimgunduz/releasetracker.me/actions/workflows/ci.yml)
 
 Self-hosted watchtower for software releases. Register repositories from
-**GitHub, GitLab, Gitea/Forgejo, Bitbucket, SourceForge, or PyPI**; a poller checks them on a
+**GitHub, GitLab, Gitea/Forgejo, Bitbucket, SourceForge, PyPI, or a plain web
+directory index**; a poller checks them on a
 schedule and sends **Telegram** notifications the moment something new appears,
 plus a **daily summary email**. Multiple Telegram bots are supported, so
 different repositories can post to different channels.
@@ -421,7 +422,7 @@ app/
   poller.py          detect / dedup / seed / dispatch  ← the engine
   scheduler.py       APScheduler jobs
   worker.py          standalone worker entrypoint
-  providers/         github, gitlab, gitea, bitbucket + registry
+  providers/         github, gitlab, gitea, bitbucket, sourceforge, pypi, webindex + registry
   notifiers/         telegram (multi-bot), email digest
   web/               auth, repos, bots, routes, releases, users
   templates/         Jinja2 + HTMX
