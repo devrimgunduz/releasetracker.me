@@ -77,6 +77,8 @@ class Repository(Base):
     def web_url(self) -> str:
         """Browser URL for the repo, derived from forge + base_url + slug.
         Public hosts use their canonical domain; self-hosted uses base_url."""
+        if self.forge_type == "webindex":
+            return self.base_url  # the listing page itself
         if self.forge_type == "sourceforge":
             root = self.base_url or "https://sourceforge.net"
             return f"{root.rstrip('/')}/projects/{self.name}/"  # owner is a pseudo-value

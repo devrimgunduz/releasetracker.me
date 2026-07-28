@@ -45,6 +45,9 @@ OK_CASES = [
     ("https://pypi.org/project/requests/", "github", ("pypi", "", "pypi", "requests")),
     ("https://pypi.org/project/requests/2.31.0/", "github", ("pypi", "", "pypi", "requests")),
     ("https://pypi.org/pypi/requests/json", "github", ("pypi", "", "pypi", "requests")),
+    # Web directory index: the whole listing URL is the identity (dropdown = webindex).
+    ("https://www.haproxy.org/download/3.4/src/", "webindex",
+     ("webindex", "https://www.haproxy.org/download/3.4/src/", "www.haproxy.org", "download/3.4/src")),
 ]
 
 

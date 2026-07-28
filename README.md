@@ -35,7 +35,11 @@ tags-only. SourceForge has no git releases/tags at all — its file-release RSS
 feed is used instead, with each top-level version folder treated as one release;
 paste the project URL, e.g. `https://sourceforge.net/projects/proftpd`. PyPI has no git releases/tags either — its per-project releases RSS feed is
 used, one release per published version; paste the package URL, e.g.
-`https://pypi.org/project/requests`.)
+`https://pypi.org/project/requests`. For projects that publish tarballs on a plain web page instead of a
+forge — like `https://www.haproxy.org/download/3.4/src/` — pick **Web
+directory index** and paste the listing URL; each archive file becomes a
+release, with the version parsed from the filename and the date from the
+listing.)
 
 **First poll seeds silently.** When you add a repository, its existing releases
 are recorded as a baseline with no notifications, so you aren't flooded with its

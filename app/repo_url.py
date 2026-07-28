@@ -73,6 +73,13 @@ def parse_repo_url(raw: str, forge_hint: str = "github") -> tuple[str, str, str,
         base_url = f"{scheme}://{host}"
 
     # Owner / name. GitLab allows nested groups and uses '/-/' before sub-pages.
+    if forge == "webindex":
+        # A directory-listing page: the whole URL is the identity. Keep the full
+        # path in base_url; owner/name are just for display.
+        full = path if path.startswith("/") else "/" + path
+        if not full.endswith("/"):
+            full += "/"
+        return forge, f"{scheme}://{host}{full}", host, (p or host)
     if forge == "sourceforge":
         # sourceforge.net/projects/<project> or /p/<project>; the project is a
         # single identifier. Store it in `name`, with a fixed pseudo-owner.
