@@ -41,6 +41,10 @@ OK_CASES = [
     ("https://sourceforge.net/projects/proftpd/", "github", ("sourceforge", "", "sourceforge", "proftpd")),
     ("https://sourceforge.net/projects/proftpd/files/", "github", ("sourceforge", "", "sourceforge", "proftpd")),
     ("https://sourceforge.net/p/proftpd/", "github", ("sourceforge", "", "sourceforge", "proftpd")),
+    # PyPI: single package identifier -> pseudo-owner "pypi".
+    ("https://pypi.org/project/requests/", "github", ("pypi", "", "pypi", "requests")),
+    ("https://pypi.org/project/requests/2.31.0/", "github", ("pypi", "", "pypi", "requests")),
+    ("https://pypi.org/pypi/requests/json", "github", ("pypi", "", "pypi", "requests")),
 ]
 
 

@@ -1,5 +1,5 @@
 """Importing this package registers every bundled provider."""
-from . import bitbucket, gitea, github, gitlab, sourceforge  # noqa: F401
+from . import bitbucket, gitea, github, gitlab, pypi, sourceforge  # noqa: F401
 from .base import (
     FetchResult,
     Provider,

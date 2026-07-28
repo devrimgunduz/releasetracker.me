@@ -24,6 +24,7 @@ KNOWN_HOSTS: dict[str, tuple[str, str]] = {
     "bitbucket.org": ("bitbucket", ""),
     "codeberg.org": ("gitea", "https://codeberg.org"),  # public Forgejo
     "sourceforge.net": ("sourceforge", ""),
+    "pypi.org": ("pypi", ""),
 }
 
 
@@ -82,6 +83,17 @@ def parse_repo_url(raw: str, forge_hint: str = "github") -> tuple[str, str, str,
         if not project:
             raise RepoURLError("SourceForge URL should look like .../projects/<project>.")
         owner, name = "sourceforge", project
+    elif forge == "pypi":
+        # pypi.org/project/<pkg> or /pypi/<pkg>; a single package identifier.
+        if segments and segments[0] in ("project", "pypi") and len(segments) >= 2:
+            package = segments[1]
+        elif segments:
+            package = segments[0]
+        else:
+            package = ""
+        if not package:
+            raise RepoURLError("PyPI URL should look like https://pypi.org/project/<package>.")
+        owner, name = "pypi", package
     elif forge == "gitlab":
         if "-" in segments:
             segments = segments[: segments.index("-")]

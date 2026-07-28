@@ -37,3 +37,8 @@ def test_gitea_without_base_url_has_no_link():
 def test_sourceforge():
     r = Repository(forge_type="sourceforge", owner="sourceforge", name="proftpd", base_url="")
     assert r.web_url == "https://sourceforge.net/projects/proftpd/"
+
+
+def test_pypi():
+    r = Repository(forge_type="pypi", owner="pypi", name="requests", base_url="")
+    assert r.web_url == "https://pypi.org/project/requests/"

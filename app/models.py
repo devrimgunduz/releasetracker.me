@@ -80,6 +80,9 @@ class Repository(Base):
         if self.forge_type == "sourceforge":
             root = self.base_url or "https://sourceforge.net"
             return f"{root.rstrip('/')}/projects/{self.name}/"  # owner is a pseudo-value
+        if self.forge_type == "pypi":
+            root = self.base_url or "https://pypi.org"
+            return f"{root.rstrip('/')}/project/{self.name}/"
         if self.forge_type == "github":
             root = self.base_url or "https://github.com"
         elif self.forge_type == "gitlab":
