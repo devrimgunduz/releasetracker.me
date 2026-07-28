@@ -25,6 +25,8 @@ radarctl — Release Radar operator commands
 
   radarctl migrate                 Apply database migrations (alembic upgrade head)
   radarctl create-admin USER PASS  Create or promote an admin user
+  radarctl list                    List watched repositories with their ids
+  radarctl remove ID               Remove a repository by id (asks to confirm)
   radarctl poll                    Run one poll sweep now
   radarctl summary                 Send the daily email digest now
   radarctl test-telegram           Send a test message down every Telegram route
@@ -46,6 +48,9 @@ case "$cmd" in
   poll)          app "$VENV/python" -m scripts.run poll ;;
   summary)       app "$VENV/python" -m scripts.run summary ;;
   test-telegram) app "$VENV/python" -m scripts.run test-telegram ;;
+  list)          app "$VENV/python" -m scripts.list_repos ;;
+  remove)        [ $# -eq 1 ] || { echo "usage: radarctl remove <id>" >&2; exit 2; }
+                 app "$VENV/python" -m scripts.remove_repo "$1" ;;
   config)        app "$VENV/python" -c "from app.config import get_settings; print(get_settings().database_url)" ;;
 
   start)         sudo systemctl start   "$WEB_SVC" "$WORKER_SVC" ;;
