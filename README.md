@@ -63,7 +63,7 @@ it lives in `.env` as plain text, so keep it read-only.)
 
 - Linux with systemd
 - Python 3.11+
-- PostgreSQL 13+
+- PostgreSQL 17+
 - A Telegram bot token (from [@BotFather](https://t.me/BotFather)) per channel you want to post to
 - An SMTP account for the daily email (optional — leave `SMTP_HOST` blank to disable)
 
