@@ -37,6 +37,10 @@ OK_CASES = [
     ("https://git.mycompany.com/ops/infra", "gitea", ("gitea", "https://git.mycompany.com", "ops", "infra")),
     # Self-hosted keeps the scheme (http) and port.
     ("http://git.local:3000/team/proj", "gitea", ("gitea", "http://git.local:3000", "team", "proj")),
+    # SourceForge: single project identifier -> pseudo-owner "sourceforge".
+    ("https://sourceforge.net/projects/proftpd/", "github", ("sourceforge", "", "sourceforge", "proftpd")),
+    ("https://sourceforge.net/projects/proftpd/files/", "github", ("sourceforge", "", "sourceforge", "proftpd")),
+    ("https://sourceforge.net/p/proftpd/", "github", ("sourceforge", "", "sourceforge", "proftpd")),
 ]
 
 

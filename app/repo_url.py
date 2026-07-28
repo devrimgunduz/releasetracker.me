@@ -23,6 +23,7 @@ KNOWN_HOSTS: dict[str, tuple[str, str]] = {
     "gitlab.com": ("gitlab", ""),
     "bitbucket.org": ("bitbucket", ""),
     "codeberg.org": ("gitea", "https://codeberg.org"),  # public Forgejo
+    "sourceforge.net": ("sourceforge", ""),
 }
 
 
@@ -71,7 +72,17 @@ def parse_repo_url(raw: str, forge_hint: str = "github") -> tuple[str, str, str,
         base_url = f"{scheme}://{host}"
 
     # Owner / name. GitLab allows nested groups and uses '/-/' before sub-pages.
-    if forge == "gitlab":
+    if forge == "sourceforge":
+        # sourceforge.net/projects/<project> or /p/<project>; the project is a
+        # single identifier. Store it in `name`, with a fixed pseudo-owner.
+        if segments and segments[0] in ("projects", "p") and len(segments) >= 2:
+            project = segments[1]
+        else:
+            project = segments[0]
+        if not project:
+            raise RepoURLError("SourceForge URL should look like .../projects/<project>.")
+        owner, name = "sourceforge", project
+    elif forge == "gitlab":
         if "-" in segments:
             segments = segments[: segments.index("-")]
         if len(segments) < 2:

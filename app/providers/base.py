@@ -104,11 +104,11 @@ class Provider:
     async def list_tags(self, repo: RepoRef, etag: str | None = None) -> FetchResult:
         raise NotImplementedError
 
-    async def _fetch(
+    async def _fetch_response(
         self, url: str, repo: RepoRef, etag: str | None = None, params: dict | None = None
-    ) -> tuple[object | None, str | None, bool]:
-        """Conditional GET. Returns (json_or_None, new_etag, not_modified).
-        Raises RateLimited on an exhausted quota so the caller can back off."""
+    ) -> tuple[httpx.Response | None, str | None, bool]:
+        """Conditional GET returning the raw response (None on 304). Raises
+        RateLimited on an exhausted quota. Use this for non-JSON bodies (e.g. RSS)."""
         headers = dict(self.headers(repo))
         if etag:
             headers["If-None-Match"] = etag
@@ -129,7 +129,16 @@ class Provider:
                 raise RateLimited(resp.request.url.host, _reset_at(resp))
 
         resp.raise_for_status()
-        return resp.json(), resp.headers.get("ETag"), False
+        return resp, resp.headers.get("ETag"), False
+
+    async def _fetch(
+        self, url: str, repo: RepoRef, etag: str | None = None, params: dict | None = None
+    ) -> tuple[object | None, str | None, bool]:
+        """Conditional GET returning parsed JSON. Returns (json_or_None, etag, not_modified)."""
+        resp, new_etag, not_modified = await self._fetch_response(url, repo, etag, params)
+        if not_modified:
+            return None, new_etag, True
+        return resp.json(), new_etag, False
 
 
 _REGISTRY: dict[str, type[Provider]] = {}

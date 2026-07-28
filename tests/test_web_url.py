@@ -32,3 +32,8 @@ def test_selfhosted_github_enterprise():
 def test_gitea_without_base_url_has_no_link():
     # Self-hosted forge with no known root can't produce a URL.
     assert _repo(forge_type="gitea").web_url == ""
+
+
+def test_sourceforge():
+    r = Repository(forge_type="sourceforge", owner="sourceforge", name="proftpd", base_url="")
+    assert r.web_url == "https://sourceforge.net/projects/proftpd/"

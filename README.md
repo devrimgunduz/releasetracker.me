@@ -3,7 +3,7 @@
 [![CI](https://github.com/devrimgunduz/releasetracker.me/actions/workflows/ci.yml/badge.svg)](https://github.com/devrimgunduz/releasetracker.me/actions/workflows/ci.yml)
 
 Self-hosted watchtower for software releases. Register repositories from
-**GitHub, GitLab, Gitea/Forgejo, or Bitbucket**; a poller checks them on a
+**GitHub, GitLab, Gitea/Forgejo, Bitbucket, or SourceForge**; a poller checks them on a
 schedule and sends **Telegram** notifications the moment something new appears,
 plus a **daily summary email**. Multiple Telegram bots are supported, so
 different repositories can post to different channels.
@@ -31,7 +31,9 @@ poll firing more than once.
 **Providers** are pluggable. Each forge is one file in `app/providers/`
 implementing `list_releases()` / `list_tags()` and registering itself. Adding a
 new forge later touches nothing else. (Bitbucket has no releases API, so it is
-tags-only — the UI reflects this automatically.)
+tags-only. SourceForge has no git releases/tags at all — its file-release RSS
+feed is used instead, with each top-level version folder treated as one release;
+paste the project URL, e.g. `https://sourceforge.net/projects/proftpd`.)
 
 **First poll seeds silently.** When you add a repository, its existing releases
 are recorded as a baseline with no notifications, so you aren't flooded with its
