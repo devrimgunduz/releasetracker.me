@@ -32,6 +32,7 @@ async def list_repos(
         repos=repos,
         providers=available_providers(),
         bots=bots,
+        tag_forges={p.key for p in available_providers() if p.supports_tags},
     )
 
 
@@ -131,6 +132,38 @@ async def delete_repo(
         await session.delete(repo)
         await session.commit()
         flash(request, f"Stopped watching {repo.slug}.", "success")
+    return redirect("/repositories")
+
+
+@router.post("/{repo_id}/toggle-releases")
+async def toggle_releases(
+    repo_id: int,
+    request: Request,
+    user=Depends(current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    repo = await session.get(Repository, repo_id)
+    if repo:
+        repo.watch_releases = not repo.watch_releases
+        await session.commit()
+        state = "watching" if repo.watch_releases else "not watching"
+        flash(request, f"Now {state} releases for {repo.slug}.", "success")
+    return redirect("/repositories")
+
+
+@router.post("/{repo_id}/toggle-tags")
+async def toggle_tags(
+    repo_id: int,
+    request: Request,
+    user=Depends(current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    repo = await session.get(Repository, repo_id)
+    if repo:
+        repo.watch_tags = not repo.watch_tags
+        await session.commit()
+        state = "watching" if repo.watch_tags else "not watching"
+        flash(request, f"Now {state} tags for {repo.slug}.", "success")
     return redirect("/repositories")
 
 

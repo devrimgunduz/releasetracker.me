@@ -78,8 +78,18 @@
         </td>
         <td><span class="pill pill-forge">{{ r.forge_type }}</span></td>
         <td>
-          {% if r.watch_releases %}<span class="pill pill-release">releases</span>{% endif %}
-          {% if r.watch_tags %}<span class="pill pill-tag">tags</span>{% endif %}
+          <form method="post" action="/repositories/{{ r.id }}/toggle-releases" class="inline-form">
+            <button type="submit" class="btn-link btn-sm" title="Click to toggle release watching">
+              {% if r.watch_releases %}<span class="pill pill-release">releases</span>{% else %}<span class="pill pill-off">releases off</span>{% endif %}
+            </button>
+          </form>
+          {% if r.forge_type in tag_forges %}
+          <form method="post" action="/repositories/{{ r.id }}/toggle-tags" class="inline-form">
+            <button type="submit" class="btn-link btn-sm" title="Click to toggle tag watching">
+              {% if r.watch_tags %}<span class="pill pill-tag">tags</span>{% else %}<span class="pill pill-off">tags off</span>{% endif %}
+            </button>
+          </form>
+          {% endif %}
           <form method="post" action="/repositories/{{ r.id }}/toggle-prereleases" class="inline-form">
             <button type="submit" class="btn-link btn-sm" title="Click to toggle">
               {% if r.include_prereleases %}<span class="pill pill-tag">incl. pre-releases</span>{% else %}<span class="pill pill-off">no pre-releases</span>{% endif %}
