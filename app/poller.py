@@ -22,6 +22,7 @@ from .providers import RateLimited, RepoRef, get_provider
 log = logging.getLogger("radar.poller")
 
 HTTP_TIMEOUT = httpx.Timeout(20.0)
+REPO_POLL_TIMEOUT = 120.0  # hard ceiling per repo, so one stall can't wedge the sweep
 _OLDEST = datetime.min.replace(tzinfo=timezone.utc)
 
 TEST_MESSAGE = "\U0001f514 Release Radar test — if you can read this, Telegram delivery works."
@@ -102,7 +103,12 @@ async def poll_all() -> None:
             if bucket in limited:
                 continue  # this host is already exhausted this sweep
             try:
-                await _poll_repo(client, repo.id, settings)
+                await asyncio.wait_for(
+                    _poll_repo(client, repo.id, settings), timeout=REPO_POLL_TIMEOUT
+                )
+            except asyncio.TimeoutError:
+                log.warning("poll timed out for repo id=%s after %.0fs", repo.id, REPO_POLL_TIMEOUT)
+                await _record_error(repo.id, "poll timed out; will retry next sweep")
             except RateLimited as rl:
                 limited.add(bucket)
                 until = f" until {rl.reset_at:%H:%M UTC}" if rl.reset_at else ""
