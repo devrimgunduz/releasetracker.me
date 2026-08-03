@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from collections import defaultdict
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, Form, Request
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -7,12 +10,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..crypto import encrypt
 from ..db import get_session
-from ..models import NotificationRoute, Repository, TelegramBot
+from ..models import NotificationRoute, Release, Repository, TelegramBot
 from ..providers import available_providers
 from ..repo_url import RepoURLError, parse_repo_url
 from .deps import current_user, flash, redirect, render
+from .releases import dedupe_versions
 
 router = APIRouter(prefix="/repositories")
+
+_OLDEST = datetime.min.replace(tzinfo=timezone.utc)
 
 
 @router.get("")
@@ -25,6 +31,21 @@ async def list_repos(
         await session.execute(select(Repository).order_by(Repository.owner, Repository.name))
     ).scalars().all()
     bots = (await session.execute(select(TelegramBot).order_by(TelegramBot.name))).scalars().all()
+
+    releases = (await session.execute(select(Release))).scalars().all()
+    by_repo: dict[int, list[Release]] = defaultdict(list)
+    for rel in releases:
+        by_repo[rel.repository_id].append(rel)
+
+    # The single newest tracked version per repo, keyed by repository id, so the
+    # table can show "what's latest" alongside when we first discovered it.
+    latest_release: dict[int, Release] = {}
+    for rid, rs in by_repo.items():
+        deduped = dedupe_versions(rs)
+        deduped.sort(key=lambda r: r.published_at or _OLDEST, reverse=True)
+        if deduped:
+            latest_release[rid] = deduped[0]
+
     return render(
         request,
         "repos.html",
@@ -33,6 +54,7 @@ async def list_repos(
         providers=available_providers(),
         bots=bots,
         tag_forges={p.key for p in available_providers() if p.supports_tags},
+        latest_release=latest_release,
     )
 
 

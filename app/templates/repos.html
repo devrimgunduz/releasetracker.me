@@ -66,11 +66,14 @@
 
 <div class="card card-tight">
   {% if repos %}
-  <table>
-    <thead><tr><th>Repository</th><th>Forge</th><th>Watching</th><th>Last poll</th><th></th></tr></thead>
+  <div class="field" style="margin-bottom:14px">
+    <input type="text" id="repoSearch" placeholder="Search repositories…" oninput="filterRepos()" autocomplete="off">
+  </div>
+  <table id="reposTable">
+    <thead><tr><th>Repository</th><th>Forge</th><th>Watching</th><th>Latest version</th><th>Last poll</th><th></th></tr></thead>
     <tbody>
       {% for r in repos %}
-      <tr>
+      <tr data-slug="{{ r.slug|lower }}">
         <td>
           <span class="slug">{{ r.slug }}</span>
           {% if r.base_url %}<div class="mono" style="font-size:11px;color:var(--ink-faint)">{{ r.base_url }}</div>{% endif %}
@@ -96,6 +99,15 @@
             </button>
           </form>
         </td>
+        <td class="mono" style="font-size:12px">
+          {% set latest = latest_release.get(r.id) %}
+          {% if latest %}
+          {{ latest.tag_name or latest.name }}
+          <div style="color:var(--ink-faint);font-size:11px">tracked {{ latest.discovered_at.strftime('%Y-%m-%d %H:%M') }}</div>
+          {% else %}
+          <span style="color:var(--ink-faint)">none yet</span>
+          {% endif %}
+        </td>
         <td class="mono" style="color:var(--ink-soft);font-size:12px">
           {{ r.last_polled_at.strftime('%Y-%m-%d %H:%M') if r.last_polled_at else 'never' }}
           {% if not r.seeded %}<span class="pill pill-off">baseline pending</span>{% endif %}
@@ -111,6 +123,7 @@
       {% endfor %}
     </tbody>
   </table>
+  <p id="repoSearchEmpty" class="hint" style="display:none;margin-top:10px">No repositories match your search.</p>
   {% else %}
   <div class="empty"><p><strong>No repositories yet.</strong></p><p>Add one above to start watching.</p></div>
   {% endif %}
@@ -123,5 +136,17 @@
     document.getElementById('tagsHint').style.display = opt.dataset.tagsOnly === '1' ? '' : 'none';
   }
   onForgeChange();
+
+  function filterRepos() {
+    var q = document.getElementById('repoSearch').value.trim().toLowerCase();
+    var rows = document.querySelectorAll('#reposTable tbody tr');
+    var visible = 0;
+    rows.forEach(function (tr) {
+      var match = !q || (tr.dataset.slug || '').indexOf(q) !== -1;
+      tr.style.display = match ? '' : 'none';
+      if (match) visible++;
+    });
+    document.getElementById('repoSearchEmpty').style.display = visible === 0 ? '' : 'none';
+  }
 </script>
 {% endblock %}
