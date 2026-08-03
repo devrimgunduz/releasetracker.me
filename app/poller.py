@@ -24,6 +24,7 @@ log = logging.getLogger("radar.poller")
 HTTP_TIMEOUT = httpx.Timeout(20.0)
 REPO_POLL_TIMEOUT = 120.0  # hard ceiling per repo, so one stall can't wedge the sweep
 _OLDEST = datetime.min.replace(tzinfo=timezone.utc)
+TELEGRAM_SEND_DELAY = 1.0  # seconds between sends, so a burst can't trip Telegram's flood limit
 
 TEST_MESSAGE = "\U0001f514 Release Radar test — if you can read this, Telegram delivery works."
 
@@ -124,6 +125,20 @@ async def poll_all() -> None:
             if settings.request_delay_seconds:
                 await asyncio.sleep(settings.request_delay_seconds)
 
+        # Retry anything still unnotified: a route can fail transiently (Telegram
+        # rate limit, a network blip) or be added/re-enabled after a release was
+        # already recorded. Dispatch only fires for newly created rows above, so
+        # without this pass a single failed send would be lost forever instead of
+        # retrying next sweep as the code elsewhere assumes.
+        async with SessionFactory() as session:
+            pending_ids = (
+                await session.execute(select(Release.id).where(Release.notified.is_(False)))
+            ).scalars().all()
+        for i, release_id in enumerate(pending_ids):
+            if i:
+                await asyncio.sleep(TELEGRAM_SEND_DELAY)
+            await _dispatch_telegram(client, release_id)
+
 
 async def _poll_repo(client: httpx.AsyncClient, repo_id: int, settings: Settings) -> None:
     async with SessionFactory() as session:
@@ -209,8 +224,12 @@ async def _poll_repo(client: httpx.AsyncClient, repo_id: int, settings: Settings
         for row in created:
             await session.refresh(row)
 
-    # Dispatch Telegram outside the write transaction.
-    for row in created:
+    # Dispatch Telegram outside the write transaction. A short pause between sends
+    # keeps a repo with several new items at once from tripping Telegram's flood
+    # limit on a single chat.
+    for i, row in enumerate(created):
+        if i:
+            await asyncio.sleep(TELEGRAM_SEND_DELAY)
         await _dispatch_telegram(client, row.id)
 
 
