@@ -7,6 +7,7 @@
     <p class="subtitle">Every watched repository and the releases the radar has picked up.</p>
   </div>
   <form method="post" action="/poll-now" class="inline-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <button type="submit" class="btn-ghost">Poll now</button>
   </form>
 </div>

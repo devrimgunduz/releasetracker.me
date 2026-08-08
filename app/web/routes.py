@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Form, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..csrf import verify_csrf
 from ..db import get_session
 from ..models import NotificationRoute, Repository, TelegramBot
 from .deps import current_user, flash, redirect, render
@@ -41,6 +42,7 @@ async def add_route(
     chat_id: str = Form(""),
     user=Depends(current_user),
     session: AsyncSession = Depends(get_session),
+    _csrf=Depends(verify_csrf),
 ):
     if channel_type == "telegram" and not bot_id:
         flash(request, "Pick a bot for a Telegram route.", "error")
@@ -65,6 +67,7 @@ async def toggle_route(
     request: Request,
     user=Depends(current_user),
     session: AsyncSession = Depends(get_session),
+    _csrf=Depends(verify_csrf),
 ):
     route = await session.get(NotificationRoute, route_id)
     if route:
@@ -79,6 +82,7 @@ async def delete_route(
     request: Request,
     user=Depends(current_user),
     session: AsyncSession = Depends(get_session),
+    _csrf=Depends(verify_csrf),
 ):
     route = await session.get(NotificationRoute, route_id)
     if route:

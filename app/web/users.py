@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..csrf import verify_csrf
 from ..db import get_session
 from ..models import User
 from ..security import hash_password
@@ -31,6 +32,7 @@ async def add_user(
     role: str = Form("user"),
     admin=Depends(require_admin),
     session: AsyncSession = Depends(get_session),
+    _csrf=Depends(verify_csrf),
 ):
     if len(password) < 8:
         flash(request, "Password must be at least 8 characters.", "error")
@@ -60,6 +62,7 @@ async def delete_user(
     request: Request,
     admin=Depends(require_admin),
     session: AsyncSession = Depends(get_session),
+    _csrf=Depends(verify_csrf),
 ):
     if user_id == admin.id:
         flash(request, "You can't delete your own account.", "error")

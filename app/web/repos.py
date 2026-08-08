@@ -9,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..crypto import encrypt
+from ..csrf import verify_csrf
 from ..db import get_session
 from ..models import NotificationRoute, Release, Repository, TelegramBot
 from ..providers import available_providers
@@ -72,6 +73,7 @@ async def add_repo(
     email_digest: bool = Form(False),
     user=Depends(require_admin),
     session: AsyncSession = Depends(get_session),
+    _csrf=Depends(verify_csrf),
 ):
     # forge_type from the dropdown is only a hint; a known host in the URL wins.
     try:
@@ -161,6 +163,7 @@ async def delete_repo(
     request: Request,
     user=Depends(current_user),
     session: AsyncSession = Depends(get_session),
+    _csrf=Depends(verify_csrf),
 ):
     repo = await session.get(Repository, repo_id)
     if repo:
@@ -176,6 +179,7 @@ async def toggle_releases(
     request: Request,
     user=Depends(current_user),
     session: AsyncSession = Depends(get_session),
+    _csrf=Depends(verify_csrf),
 ):
     repo = await session.get(Repository, repo_id)
     if repo:
@@ -192,6 +196,7 @@ async def toggle_tags(
     request: Request,
     user=Depends(current_user),
     session: AsyncSession = Depends(get_session),
+    _csrf=Depends(verify_csrf),
 ):
     repo = await session.get(Repository, repo_id)
     if repo:
@@ -208,6 +213,7 @@ async def toggle_prereleases(
     request: Request,
     user=Depends(current_user),
     session: AsyncSession = Depends(get_session),
+    _csrf=Depends(verify_csrf),
 ):
     repo = await session.get(Repository, repo_id)
     if repo:
@@ -261,6 +267,7 @@ async def save_notifications(
     email_digest: bool = Form(False),
     user=Depends(current_user),
     session: AsyncSession = Depends(get_session),
+    _csrf=Depends(verify_csrf),
 ):
     repo = await session.get(Repository, repo_id)
     if repo is None:

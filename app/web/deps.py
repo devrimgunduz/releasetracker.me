@@ -8,11 +8,12 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..csrf import csrf_context
 from ..db import get_session
 from ..models import User
 
 TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
-templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR), context_processors=[csrf_context])
 
 
 def reltime(dt: datetime | None) -> str:

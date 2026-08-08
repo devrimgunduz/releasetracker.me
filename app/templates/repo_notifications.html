@@ -10,6 +10,7 @@
 
 <div class="card">
   <form method="post" action="/repositories/{{ repo.id }}/notifications">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <label style="font-size:13px;font-weight:600;color:var(--ink-soft);display:block;margin-bottom:8px">Telegram</label>
     {% if bots %}
     <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">

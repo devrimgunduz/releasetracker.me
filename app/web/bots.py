@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..crypto import encrypt
+from ..csrf import verify_csrf
 from ..db import get_session
 from ..models import TelegramBot
 from .deps import current_user, flash, redirect, render, require_admin
@@ -30,6 +31,7 @@ async def add_bot(
     default_chat_id: str = Form(""),
     user=Depends(require_admin),
     session: AsyncSession = Depends(get_session),
+    _csrf=Depends(verify_csrf),
 ):
     bot = TelegramBot(
         name=name.strip(),
@@ -48,6 +50,7 @@ async def delete_bot(
     request: Request,
     user=Depends(current_user),
     session: AsyncSession = Depends(get_session),
+    _csrf=Depends(verify_csrf),
 ):
     bot = await session.get(TelegramBot, bot_id)
     if bot:

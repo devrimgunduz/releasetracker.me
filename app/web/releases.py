@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..csrf import verify_csrf
 from ..db import get_session
 from ..models import Release, Repository
 from ..poller import poll_all
@@ -107,7 +108,7 @@ async def dashboard(
 
 
 @router.post("/poll-now")
-async def poll_now(request: Request, user=Depends(current_user)):
+async def poll_now(request: Request, user=Depends(current_user), _csrf=Depends(verify_csrf)):
     # Fire and forget so the request returns immediately.
     asyncio.create_task(poll_all())
     flash(request, "Polling started — new items will appear shortly.", "success")

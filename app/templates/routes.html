@@ -6,6 +6,7 @@
 <div class="card">
   <h2>Add a route</h2>
   <form method="post" action="/routes/add">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <div class="form-grid">
       <div class="field">
         <label for="repository_id">Repository</label>
@@ -61,6 +62,7 @@
         </td>
         <td>
           <form method="post" action="/routes/{{ route.id }}/toggle" class="inline-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button type="submit" class="btn-link btn-sm">
               {% if route.enabled %}<span class="pill pill-release">enabled</span>{% else %}<span class="pill pill-off">paused</span>{% endif %}
             </button>
@@ -68,6 +70,7 @@
         </td>
         <td style="text-align:right">
           <form method="post" action="/routes/{{ route.id }}/delete" class="inline-form" onsubmit="return confirm('Remove this route?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button type="submit" class="btn-danger btn-sm">Delete</button>
           </form>
         </td>

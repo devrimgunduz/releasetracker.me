@@ -6,6 +6,7 @@
 <div class="card">
   <h2>Add a user</h2>
   <form method="post" action="/users/add">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <div class="form-grid">
       <div class="field">
         <label for="username">Username</label>
@@ -39,6 +40,7 @@
         <td style="text-align:right">
           {% if u.id != user.id %}
           <form method="post" action="/users/{{ u.id }}/delete" class="inline-form" onsubmit="return confirm('Delete {{ u.username }}?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button type="submit" class="btn-danger btn-sm">Delete</button>
           </form>
           {% endif %}

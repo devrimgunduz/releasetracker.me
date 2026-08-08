@@ -6,6 +6,7 @@
 <div class="card">
   <h2>Add a bot</h2>
   <form method="post" action="/bots/add">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <div class="field">
       <label for="name">Label <span class="hint">just for you — e.g. “Infra alerts”</span></label>
       <input type="text" id="name" name="name" required>
@@ -35,6 +36,7 @@
         <td style="text-align:right">
           <form method="post" action="/bots/{{ b.id }}/delete" class="inline-form"
                 onsubmit="return confirm('Remove bot “{{ b.name }}”? Routes using it will stop delivering.')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button type="submit" class="btn-danger btn-sm">Delete</button>
           </form>
         </td>
