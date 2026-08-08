@@ -1,7 +1,10 @@
 from __future__ import annotations
 
-import xml.etree.ElementTree as ET
 from datetime import datetime
+
+# defusedxml guards against entity-expansion/XXE-style abuse of XML parsing;
+# xml.etree.ElementTree's docs explicitly warn it's unsafe for untrusted data.
+import defusedxml.ElementTree as ET
 from email.utils import parsedate_to_datetime
 
 from .base import FetchResult, Provider, RepoRef, ReleaseItem, looks_prerelease, register

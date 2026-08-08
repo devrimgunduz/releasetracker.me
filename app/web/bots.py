@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..crypto import encrypt
 from ..db import get_session
 from ..models import TelegramBot
-from .deps import current_user, flash, redirect, render
+from .deps import current_user, flash, redirect, render, require_admin
 
 router = APIRouter(prefix="/bots")
 
@@ -28,7 +28,7 @@ async def add_bot(
     name: str = Form(...),
     token: str = Form(...),
     default_chat_id: str = Form(""),
-    user=Depends(current_user),
+    user=Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
     bot = TelegramBot(

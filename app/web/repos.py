@@ -13,7 +13,8 @@ from ..db import get_session
 from ..models import NotificationRoute, Release, Repository, TelegramBot
 from ..providers import available_providers
 from ..repo_url import RepoURLError, parse_repo_url
-from .deps import current_user, flash, redirect, render
+from ..ssrf import SSRFError, validate_public_url
+from .deps import current_user, flash, redirect, render, require_admin
 from .releases import dedupe_versions
 
 router = APIRouter(prefix="/repositories")
@@ -69,7 +70,7 @@ async def add_repo(
     exclude_prereleases: bool = Form(False),
     bot_ids: list[int] = Form(default=[]),
     email_digest: bool = Form(False),
-    user=Depends(current_user),
+    user=Depends(require_admin),
     session: AsyncSession = Depends(get_session),
 ):
     # forge_type from the dropdown is only a hint; a known host in the URL wins.
@@ -78,6 +79,18 @@ async def add_repo(
     except RepoURLError as exc:
         flash(request, str(exc), "error")
         return redirect("/repositories")
+
+    # SECURITY: reject repos that resolve to internal/loopback/link-local
+    # addresses before they're ever stored — the worker would otherwise poll
+    # them forever (SSRF). Known-forge URLs (github.com, gitlab.com, ...) have
+    # base_url=="" and are checked against the provider's own default_base_url
+    # at fetch time instead, so only self-hosted / webindex URLs hit this.
+    if base_url:
+        try:
+            validate_public_url(base_url)
+        except SSRFError as exc:
+            flash(request, str(exc), "error")
+            return redirect("/repositories")
 
     if not watch_releases and not watch_tags:
         watch_releases = True  # watching nothing is pointless; default to releases

@@ -1,10 +1,16 @@
 """Create (or promote) an admin user.
 
-    python -m scripts.create_admin <username> <password>
+    python -m scripts.create_admin <username> [password]
+
+If password is omitted, it's prompted for interactively (not echoed) via
+getpass — preferred over passing it as an argument, since argv is visible to
+other local users via `ps`/`/proc/<pid>/cmdline` and tends to land in shell
+history.
 """
 from __future__ import annotations
 
 import asyncio
+import getpass
 import sys
 
 from sqlalchemy import select
@@ -35,6 +41,8 @@ async def main(username: str, password: str) -> None:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        sys.exit("Usage: python -m scripts.create_admin <username> <password>")
-    asyncio.run(main(sys.argv[1], sys.argv[2]))
+    if len(sys.argv) not in (2, 3):
+        sys.exit("Usage: python -m scripts.create_admin <username> [password]")
+    username = sys.argv[1]
+    password = sys.argv[2] if len(sys.argv) == 3 else getpass.getpass("Password: ")
+    asyncio.run(main(username, password))

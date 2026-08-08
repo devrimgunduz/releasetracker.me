@@ -1,3 +1,4 @@
+import hashlib
 from functools import lru_cache
 
 from pydantic import Field
@@ -40,6 +41,17 @@ class Settings(BaseSettings):
     @property
     def email_enabled(self) -> bool:
         return bool(self.smtp_host and self.recipient_list)
+
+    @property
+    def session_signing_key(self) -> str:
+        """A key derived from SECRET_KEY, distinct from the one crypto.py uses
+        to encrypt stored tokens (key separation — see security review: reusing
+        one secret for two different cryptographic purposes widens the blast
+        radius of any future weakness in either one). Changing this on upgrade
+        invalidates existing sessions, which is expected and harmless; it does
+        NOT affect already-encrypted tokens, which still derive from
+        SECRET_KEY directly in crypto.py."""
+        return hashlib.sha256(f"{self.secret_key}|session-signing".encode()).hexdigest()
 
 
 @lru_cache

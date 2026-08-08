@@ -23,9 +23,10 @@ app = FastAPI(title="Release Radar", version=__version__)
 
 app.add_middleware(
     SessionMiddleware,
-    secret_key=settings.secret_key,
+    secret_key=settings.session_signing_key,
     https_only=settings.session_https_only,
     same_site="lax",
+    max_age=60 * 60 * 12,  # 12h — was unset (Starlette default: 2 weeks)
 )
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"

@@ -98,7 +98,10 @@ async def poll_all() -> None:
 
     limited: set[tuple[str, str]] = set()  # (forge_type, base_url) buckets to skip
 
-    async with httpx.AsyncClient(timeout=HTTP_TIMEOUT, follow_redirects=True) as client:
+    # follow_redirects=False: redirects are followed manually in
+    # Provider._fetch_response so each hop can be re-validated against
+    # ssrf.validate_public_url() — see app/ssrf.py.
+    async with httpx.AsyncClient(timeout=HTTP_TIMEOUT, follow_redirects=False) as client:
         for repo in repos:
             bucket = (repo.forge_type, repo.base_url)
             if bucket in limited:
@@ -148,7 +151,14 @@ async def _poll_repo(client: httpx.AsyncClient, repo_id: int, settings: Settings
 
         provider = get_provider(repo.forge_type, client)
         token = decrypt(repo.token_enc)
-        if not token and repo.forge_type == "github":
+        # SECURITY: only ever attach the shared DEFAULT_GITHUB_TOKEN when this
+        # repo actually resolves to the real github.com API — i.e. base_url is
+        # empty (parse_repo_url only leaves it empty for the known github.com
+        # host; any other host, even with forge_type=="github", keeps its own
+        # base_url). Without this check a repo registered with forge_type
+        # "github" but an attacker-controlled base_url would leak the shared
+        # token to that host's Authorization header on every poll.
+        if not token and repo.forge_type == "github" and not repo.base_url:
             token = settings.default_github_token or None  # shared fallback token
         ref = RepoRef(owner=repo.owner, name=repo.name, base_url=repo.base_url, token=token)
 

@@ -11,6 +11,8 @@ from datetime import datetime, timedelta, timezone
 
 import httpx
 
+from ..ssrf import SSRFError, validate_public_url
+
 # Detects a pre-release identifier in a tag/version string, for forges that don't
 # expose an explicit flag (GitLab, Bitbucket) and for plain tags. Requires the
 # token to follow a separator so real names like "prometheus" don't match "pre".
@@ -108,11 +110,33 @@ class Provider:
         self, url: str, repo: RepoRef, etag: str | None = None, params: dict | None = None
     ) -> tuple[httpx.Response | None, str | None, bool]:
         """Conditional GET returning the raw response (None on 304). Raises
-        RateLimited on an exhausted quota. Use this for non-JSON bodies (e.g. RSS)."""
+        RateLimited on an exhausted quota. Use this for non-JSON bodies (e.g. RSS).
+
+        Validates the destination — and every redirect hop — against
+        ssrf.validate_public_url() before connecting, so a repo/base_url
+        pointing at an internal or loopback address is refused rather than
+        polled. The client is expected to have follow_redirects disabled;
+        redirects are followed here, one hop at a time, so each Location can
+        be re-validated (a naive allow-then-follow check can be bypassed by a
+        redirect to a private address)."""
         headers = dict(self.headers(repo))
         if etag:
             headers["If-None-Match"] = etag
-        resp = await self.client.get(url, headers=headers, params=params)
+
+        next_url = url
+        for _ in range(5):  # bounded redirect chain
+            validate_public_url(next_url)
+            resp = await self.client.get(next_url, headers=headers, params=params)
+            if resp.is_redirect:
+                location = resp.headers.get("location")
+                if not location:
+                    break
+                next_url = str(resp.next_request.url) if resp.next_request else location
+                params = None  # query params only apply to the original request
+                continue
+            break
+        else:
+            raise SSRFError("Too many redirects.")
 
         if resp.status_code == 304:
             return None, etag, True

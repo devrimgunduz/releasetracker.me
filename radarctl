@@ -24,7 +24,8 @@ usage() {
 radarctl — Release Radar operator commands
 
   radarctl migrate                 Apply database migrations (alembic upgrade head)
-  radarctl create-admin USER PASS  Create or promote an admin user
+  radarctl create-admin USER [PASS]  Create or promote an admin user (prompts for
+                                      the password if omitted)
   radarctl list                    List watched repositories with their ids
   radarctl remove ID               Remove a repository by id (asks to confirm)
   radarctl poll                    Run one poll sweep now
@@ -43,8 +44,8 @@ EOF
 cmd="${1:-help}"; shift || true
 case "$cmd" in
   migrate)       app "$VENV/alembic" upgrade head ;;
-  create-admin)  [ $# -eq 2 ] || { echo "usage: radarctl create-admin USER PASS" >&2; exit 2; }
-                 app "$VENV/python" -m scripts.create_admin "$1" "$2" ;;
+  create-admin)  [ $# -ge 1 ] && [ $# -le 2 ] || { echo "usage: radarctl create-admin USER [PASS]" >&2; exit 2; }
+                 app "$VENV/python" -m scripts.create_admin "$@" ;;
   poll)          app "$VENV/python" -m scripts.run poll ;;
   summary)       app "$VENV/python" -m scripts.run summary ;;
   test-telegram) app "$VENV/python" -m scripts.run test-telegram ;;
