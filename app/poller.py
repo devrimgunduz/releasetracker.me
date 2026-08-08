@@ -8,7 +8,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .config import Settings, get_settings
@@ -78,6 +78,15 @@ async def send_test_notifications() -> None:
                 print(f"OK    {label}")
             except Exception as exc:
                 print(f"FAIL  {label}: {exc}")
+
+
+async def last_sweep_at() -> datetime | None:
+    """The most recent `last_polled_at` across all repos, i.e. roughly when the
+    previous process last actually ran a sweep — used at worker startup to
+    decide whether an immediate boot poll is warranted (see app/worker.py).
+    None if there are no repos yet, or none has ever been polled."""
+    async with SessionFactory() as session:
+        return (await session.execute(select(func.max(Repository.last_polled_at)))).scalar_one()
 
 
 async def poll_all() -> None:
