@@ -5,15 +5,21 @@
 
 <div class="card">
   <h2>Add a bot</h2>
-  <form method="post" action="/bots/add">
+  <form method="post" action="/bots/add" autocomplete="off">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <!-- Decoy fields: see repos.html for why these are needed to stop password
+         managers from autofilling the label/token fields below. -->
+    <div aria-hidden="true" style="position:absolute; width:1px; height:1px; overflow:hidden; opacity:0; pointer-events:none;">
+      <input type="text" name="username" autocomplete="username" tabindex="-1">
+      <input type="password" name="password" autocomplete="current-password" tabindex="-1">
+    </div>
     <div class="field">
       <label for="name">Label <span class="hint">just for you — e.g. “Infra alerts”</span></label>
       <input type="text" id="name" name="name" required>
     </div>
     <div class="field">
       <label for="token">Bot token <span class="hint">from @BotFather. Stored encrypted.</span></label>
-      <input type="password" id="token" name="token" autocomplete="off" required>
+      <input type="password" id="token" name="token" autocomplete="new-password" required>
     </div>
     <div class="field">
       <label for="default_chat_id">Default chat / channel ID <span class="hint">optional — e.g. -1001234567890. The bot must be an admin of the channel.</span></label>

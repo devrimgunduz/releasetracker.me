@@ -5,8 +5,17 @@
 
 <div class="card">
   <h2>Add a repository</h2>
-  <form method="post" action="/repositories/add">
+  <form method="post" action="/repositories/add" autocomplete="off">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <!-- Decoy fields: password managers (Bitwarden, etc.) match "a text field
+         followed by a password field" as a login form and autofill saved
+         credentials into the real fields below, ignoring autocomplete="off".
+         These absorb that autofill instead since they score higher as the
+         username/password pair. -->
+    <div aria-hidden="true" style="position:absolute; width:1px; height:1px; overflow:hidden; opacity:0; pointer-events:none;">
+      <input type="text" name="username" autocomplete="username" tabindex="-1">
+      <input type="password" name="password" autocomplete="current-password" tabindex="-1">
+    </div>
     <div class="field">
       <label for="url">Repository URL</label>
       <input type="text" id="url" name="url" placeholder="https://github.com/devrimgunduz/passwordcheck_cracklib" required autofocus autocomplete="off">
@@ -30,7 +39,7 @@
     </div>
     <div class="field">
       <label for="token">Access token <span class="hint">optional — private repos or higher rate limits. Stored encrypted.</span></label>
-      <input type="password" id="token" name="token" autocomplete="off">
+      <input type="password" id="token" name="token" autocomplete="new-password">
     </div>
     <div class="form-row" style="margin:6px 0 18px">
       <label class="check"><input type="checkbox" name="watch_releases" value="true" checked> Watch releases</label>
