@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Form, Request
 from sqlalchemy import select
@@ -16,11 +15,9 @@ from ..providers import available_providers
 from ..repo_url import RepoURLError, parse_repo_url
 from ..ssrf import SSRFError, validate_public_url
 from .deps import current_user, flash, redirect, render, require_admin
-from .releases import dedupe_versions
+from .releases import dedupe_versions, release_sort_key
 
 router = APIRouter(prefix="/repositories")
-
-_OLDEST = datetime.min.replace(tzinfo=timezone.utc)
 
 
 @router.get("")
@@ -44,7 +41,7 @@ async def list_repos(
     latest_release: dict[int, Release] = {}
     for rid, rs in by_repo.items():
         deduped = dedupe_versions(rs)
-        deduped.sort(key=lambda r: r.published_at or _OLDEST, reverse=True)
+        deduped.sort(key=release_sort_key, reverse=True)
         if deduped:
             latest_release[rid] = deduped[0]
 
