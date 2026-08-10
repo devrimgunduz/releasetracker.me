@@ -33,7 +33,7 @@
   {% set repo = item.repo %}
   <div class="card repo-card">
     <div class="repo-head">
-      {% if repo.web_url %}<a class="slug" href="{{ repo.web_url }}" target="_blank" rel="noopener">{{ repo.slug }}</a>
+      {% if repo.web_url %}<a class="slug" href="{{ repo.web_url | external_url }}" target="_blank" rel="noopener">{{ repo.slug }}</a>
       {% else %}<span class="slug">{{ repo.slug }}</span>{% endif %}
       <span class="on-forge">on {{ forge_labels.get(repo.forge_type, repo.forge_type) }}</span>
       {% if not repo.include_prereleases %}<span class="pill pill-off">no pre-releases</span>{% endif %}
@@ -51,7 +51,7 @@
         <span class="rel-when" title="No release date from the forge — showing when Release Radar first saw it">seen {{ rel.discovered_at | reltime }}:</span>
         {% endif %}
         {% if not rel.notified %}<span class="dot dot-new" title="Awaiting Telegram delivery"></span>{% endif %}
-        {% if rel.url %}<a class="rel-ver" href="{{ rel.url }}" target="_blank" rel="noopener">{{ rel.tag_name or rel.name }}</a>
+        {% if rel.url %}<a class="rel-ver" href="{{ rel.url | external_url }}" target="_blank" rel="noopener">{{ rel.tag_name or rel.name }}</a>
         {% else %}<span class="rel-ver">{{ rel.tag_name or rel.name }}</span>{% endif %}
         {% if rel.prerelease %}<span class="pre-tag">pre</span>{% endif %}
       </span>

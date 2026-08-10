@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Form, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..config import get_settings
 from ..csrf import verify_csrf
 from ..db import get_session
 from ..models import User
@@ -28,15 +29,19 @@ auth_log = logging.getLogger("radar.auth")
 def client_ip(request: Request) -> str:
     """Real client IP for logging/banning.
 
-    Behind the Apache reverse proxy the socket peer is always 127.0.0.1, so the
-    address comes from X-Forwarded-For. Apache's mod_proxy_http *appends* the peer
-    it saw to any XFF the client sent, so with a single trusted proxy the LAST
-    entry is the real client — using the first would let a client forge the header
-    and get an arbitrary address banned. (Adjust if you chain multiple proxies.)"""
+    X-Forwarded-For is only honoured when the direct socket peer is a configured
+    trusted proxy (TRUSTED_PROXY_IPS, default: the local Apache). Otherwise the
+    peer address is used — so a client that reaches the app directly can't spoof
+    XFF to evade the login rate limiter or get an arbitrary address banned by
+    fail2ban. Behind the trusted proxy, Apache's mod_proxy_http *appends* the peer
+    it saw to any XFF the client sent, so the LAST entry is the real client (using
+    the first would reintroduce the spoof). Adjust TRUSTED_PROXY_IPS if you chain
+    multiple proxies."""
+    peer = request.client.host if request.client else "-"
     xff = request.headers.get("x-forwarded-for")
-    if xff:
+    if xff and peer in get_settings().trusted_proxies:
         return xff.split(",")[-1].strip()
-    return request.client.host if request.client else "-"
+    return peer
 
 
 @router.get("/login")

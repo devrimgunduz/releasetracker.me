@@ -19,7 +19,10 @@ def format_message(repo_slug: str, forge: str, kind: str, name: str, tag: str, u
     if tag and tag != name:
         lines.append(f"<code>{_escape(tag)}</code>")
     if url:
-        lines.append(f'<a href="{_escape(url)}">View on {_escape(forge)}</a>')
+        # quote=True: escape any " in the URL so it can't break out of the href
+        # attribute and inject Telegram HTML. The link text uses the normal escape.
+        href = html.escape(url or "", quote=True)
+        lines.append(f'<a href="{href}">View on {_escape(forge)}</a>')
     return "\n".join(lines)
 
 

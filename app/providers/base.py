@@ -8,10 +8,22 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
+from urllib.parse import urlsplit
 
 import httpx
 
 from ..ssrf import SSRFError, validate_public_url
+
+# Credentials that must never be forwarded across an origin boundary on a
+# redirect (matched case-insensitively). Covers every auth header the bundled
+# providers set: GitHub/Gitea/Bitbucket use Authorization, GitLab PRIVATE-TOKEN.
+_SENSITIVE_HEADERS = frozenset({"authorization", "private-token"})
+
+
+def _origin(url: str) -> tuple[str, str, int]:
+    parts = urlsplit(url)
+    port = parts.port or (443 if parts.scheme == "https" else 80)
+    return (parts.scheme, (parts.hostname or "").lower(), port)
 
 # Detects a pre-release identifier in a tag/version string, for forges that don't
 # expose an explicit flag (GitLab, Bitbucket) and for plain tags. Requires the
@@ -124,7 +136,11 @@ class Provider:
             headers["If-None-Match"] = etag
 
         next_url = url
+        origin = _origin(url)
         for _ in range(5):  # bounded redirect chain
+            # Fast pre-check with a friendly error. The authoritative connect-time
+            # pin — which also closes DNS rebinding — is SSRFGuardTransport, which
+            # the polling client is built with (see app/ssrf.py).
             validate_public_url(next_url)
             resp = await self.client.get(next_url, headers=headers, params=params)
             if resp.is_redirect:
@@ -133,6 +149,14 @@ class Provider:
                     break
                 next_url = str(resp.next_request.url) if resp.next_request else location
                 params = None  # query params only apply to the original request
+                # Never forward credentials across an origin boundary: a forge —
+                # or an open redirect on one — must not be able to bounce our
+                # Authorization / PRIVATE-TOKEN header to a different host.
+                if _origin(next_url) != origin:
+                    headers = {
+                        k: v for k, v in headers.items()
+                        if k.lower() not in _SENSITIVE_HEADERS
+                    }
                 continue
             break
         else:

@@ -68,6 +68,12 @@ class WebIndexProvider(Provider):
             version = _extract_version(href.rsplit("/", 1)[-1])
             if not version or version in by_version:
                 continue  # one release per version (first archive of it wins)
+            resolved = urljoin(base_url, href)
+            # A scraped href can carry a dangerous scheme (e.g. javascript:) that
+            # still ends in an archive extension; only ever store http(s) URLs so
+            # nothing but a real link is rendered on the dashboard later.
+            if not resolved.lower().startswith(("http://", "https://")):
+                continue
             when = None
             if m.group(2):
                 try:
@@ -82,7 +88,7 @@ class WebIndexProvider(Provider):
                 external_key=version,
                 name=version,
                 tag_name=version,
-                url=urljoin(base_url, href),
+                url=resolved,
                 published_at=when,
                 prerelease=looks_prerelease(version),
             )

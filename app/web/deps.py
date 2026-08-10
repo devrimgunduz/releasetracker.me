@@ -48,6 +48,20 @@ def reltime(dt: datetime | None) -> str:
 templates.env.filters["reltime"] = reltime
 
 
+def external_url(value: str | None) -> str:
+    """Render-time guard: blank any URL that isn't http(s). Release/repo URLs can
+    originate from scraped pages or self-hosted forges, so a `javascript:` (or
+    other) scheme must never reach an href even though autoescaping wouldn't stop
+    it from executing on click."""
+    if not value:
+        return ""
+    v = str(value).strip()
+    return v if v.lower().startswith(("http://", "https://")) else ""
+
+
+templates.env.filters["external_url"] = external_url
+
+
 def flash(request: Request, message: str, category: str = "info") -> None:
     request.session.setdefault("_flashes", []).append({"message": message, "category": category})
 

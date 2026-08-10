@@ -73,3 +73,43 @@ async def test_plain_403_is_not_treated_as_rate_limit():
     async with _client(handler) as c:
         with pytest.raises(httpx.HTTPStatusError):
             await get_provider("github", c).list_releases(REPO)
+
+
+@pytest.mark.asyncio
+async def test_credentials_stripped_on_cross_origin_redirect(monkeypatch):
+    # A forge (or an open redirect on one) bounces us to another host. The token
+    # must not follow across the origin boundary.
+    monkeypatch.setattr("app.providers.base.validate_public_url", lambda url: None)
+    seen = []
+
+    def handler(req):
+        seen.append((req.url.host, req.headers.get("authorization")))
+        if req.url.host == "api.github.com":
+            return httpx.Response(302, headers={"location": "https://evil.example.com/repos"})
+        return httpx.Response(200, json=[RELEASE])
+
+    repo = RepoRef(owner="acme", name="widget", token="s3cret")
+    async with _client(handler) as c:
+        await get_provider("github", c).list_releases(repo)
+
+    assert seen[0] == ("api.github.com", "Bearer s3cret")  # sent to the real forge
+    assert seen[1][0] == "evil.example.com"
+    assert seen[1][1] is None  # Authorization dropped on the cross-origin hop
+
+
+@pytest.mark.asyncio
+async def test_credentials_kept_on_same_origin_redirect(monkeypatch):
+    monkeypatch.setattr("app.providers.base.validate_public_url", lambda url: None)
+    seen = []
+
+    def handler(req):
+        seen.append((str(req.url), req.headers.get("authorization")))
+        if req.url.path.endswith("/releases"):
+            return httpx.Response(302, headers={"location": "https://api.github.com/moved"})
+        return httpx.Response(200, json=[RELEASE])
+
+    repo = RepoRef(owner="acme", name="widget", token="s3cret")
+    async with _client(handler) as c:
+        await get_provider("github", c).list_releases(repo)
+
+    assert seen[1][1] == "Bearer s3cret"  # same origin: token still sent

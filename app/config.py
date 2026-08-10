@@ -34,6 +34,17 @@ class Settings(BaseSettings):
 
     session_https_only: bool = False
 
+    # Comma-separated IPs of reverse proxies allowed to set X-Forwarded-For.
+    # The client IP (for login logging / rate limiting / fail2ban) is only read
+    # from XFF when the direct socket peer is one of these; otherwise the peer
+    # address is used, so a client reaching the app directly can't spoof the
+    # header. Default is the local Apache proxy the README describes.
+    trusted_proxy_ips: str = "127.0.0.1,::1"
+
+    @property
+    def trusted_proxies(self) -> set[str]:
+        return {ip.strip() for ip in self.trusted_proxy_ips.split(",") if ip.strip()}
+
     @property
     def recipient_list(self) -> list[str]:
         return [addr.strip() for addr in self.smtp_recipients.split(",") if addr.strip()]

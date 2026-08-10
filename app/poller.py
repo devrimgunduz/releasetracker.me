@@ -18,6 +18,7 @@ from .models import NotificationRoute, Release, Repository, TelegramBot, utcnow
 from .notifiers.email import build_digest_html, send_digest
 from .notifiers.telegram import format_message, send_telegram
 from .providers import RateLimited, RepoRef, get_provider
+from .ssrf import SSRFGuardTransport
 
 log = logging.getLogger("radar.poller")
 
@@ -109,8 +110,15 @@ async def poll_all() -> None:
 
     # follow_redirects=False: redirects are followed manually in
     # Provider._fetch_response so each hop can be re-validated against
-    # ssrf.validate_public_url() — see app/ssrf.py.
-    async with httpx.AsyncClient(timeout=HTTP_TIMEOUT, follow_redirects=False) as client:
+    # ssrf.validate_public_url() — see app/ssrf.py. SSRFGuardTransport is the
+    # authoritative connect-time guard: it pins each connection to a validated
+    # public IP, closing the DNS-rebinding window a validate-then-connect check
+    # leaves open.
+    async with httpx.AsyncClient(
+        timeout=HTTP_TIMEOUT,
+        follow_redirects=False,
+        transport=SSRFGuardTransport(httpx.AsyncHTTPTransport()),
+    ) as client:
         for repo in repos:
             bucket = (repo.forge_type, repo.base_url)
             if bucket in limited:
