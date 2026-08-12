@@ -59,3 +59,24 @@ def test_dated_entries_still_outrank_dateless_ones():
     dateless_newer = _Rel("tag", "v1.1.0", discovered_at=datetime(2025, 1, 1, tzinfo=timezone.utc))
     out = sorted([dateless_newer, dated], key=release_sort_key, reverse=True)
     assert out[0] is dated
+
+
+def test_dateless_entries_sort_by_version_not_discovery_order():
+    # acassen/keepalived-style repo: a first-run backfill discovers a whole batch
+    # of dateless tags in one sweep. If the provider handed them back
+    # newest-first, processing order (and so discovered_at) ends up *inverted*
+    # relative to version order. Version number must win over that artifact.
+    base = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    newest = _Rel("tag", "v2.4.3", discovered_at=base)  # processed first, earliest timestamp
+    middle = _Rel("tag", "v2.1.0", discovered_at=base + timedelta(seconds=1))
+    oldest = _Rel("tag", "v2.0.15", discovered_at=base + timedelta(seconds=2))  # processed last
+    out = sorted([oldest, middle, newest], key=release_sort_key, reverse=True)
+    assert [r.tag_name for r in out] == ["v2.4.3", "v2.1.0", "v2.0.15"]
+
+
+def test_unparsable_version_falls_back_to_discovery_recency():
+    base = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    older = _Rel("tag", "nightly-build", discovered_at=base)
+    newer = _Rel("tag", "latest", discovered_at=base + timedelta(days=1))
+    out = sorted([older, newer], key=release_sort_key, reverse=True)
+    assert out[0] is newer

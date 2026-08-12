@@ -5,6 +5,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Query, Request
+from packaging.version import InvalidVersion, Version
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,14 +21,36 @@ router = APIRouter()
 PER_REPO_LIMIT = 12
 SORTS = {"updated", "added", "name"}
 _OLDEST = datetime.min.replace(tzinfo=timezone.utc)
+_ZERO_VERSION = Version("0")
 
 
-def release_sort_key(r: Release) -> tuple[bool, datetime]:
+def _parsed_version(r: Release) -> Version | None:
+    raw = (r.tag_name or r.name or "").strip()
+    if raw[:1] in ("v", "V"):
+        raw = raw[1:]
+    try:
+        return Version(raw)
+    except InvalidVersion:
+        return None
+
+
+def release_sort_key(r: Release) -> tuple:
     """Newest-first sort key: dated entries rank by their real publish date and
     always outrank dateless ones (so a dateless tag can't masquerade as "just
-    now" via poll time); dateless entries among themselves rank by discovery
-    recency instead of database iteration order."""
-    return (r.published_at is not None, r.published_at or r.discovered_at)
+    now" via poll time). Among dateless entries, rank by parsed semantic version
+    rather than discovery time: a first-run backfill discovers a whole batch of
+    tags in one sweep, so discovered_at there just encodes provider/loop
+    iteration order, not real recency, and can end up reversed from the actual
+    version order. Discovery recency is still the final tiebreak for versions
+    that can't be parsed (e.g. non-semver tag names)."""
+    version = _parsed_version(r)
+    return (
+        r.published_at is not None,
+        r.published_at or _OLDEST,
+        version is not None,
+        version or _ZERO_VERSION,
+        r.discovered_at,
+    )
 
 
 def dedupe_versions(releases: list[Release]) -> list[Release]:
