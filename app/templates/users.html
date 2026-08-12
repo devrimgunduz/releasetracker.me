@@ -5,12 +5,13 @@
 
 <div class="card">
   <h2>Add a user</h2>
-  <form method="post" action="/users/add">
+  <form method="post" action="/users/add" autocomplete="off">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <div class="form-grid">
       <div class="field">
         <label for="username">Username</label>
-        <input type="text" id="username" name="username" required>
+        <input type="text" id="username" name="username" required
+               autocomplete="off" data-bwignore data-1p-ignore data-lpignore="true">
       </div>
       <div class="field">
         <label for="role">Role</label>
@@ -22,7 +23,8 @@
     </div>
     <div class="field">
       <label for="password">Password <span class="hint">at least 8 characters</span></label>
-      <input type="password" id="password" name="password" autocomplete="new-password" required>
+      <input type="password" id="password" name="password" required
+             autocomplete="new-password" data-bwignore data-1p-ignore data-lpignore="true">
     </div>
     <button type="submit">Add user</button>
   </form>
