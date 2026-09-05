@@ -142,6 +142,7 @@ sudo ln -s /opt/releaseradar/radarctl /usr/local/bin/radarctl   # optional, for 
 radarctl migrate                     # alembic upgrade head
 radarctl create-admin admin 's3cret' # create/promote an admin
 radarctl poll                        # run one poll sweep now
+radarctl poll-repo <id>               # force-poll a single repository now (id from radarctl list)
 radarctl summary                     # send the daily digest now
 radarctl test-telegram               # send a test message down every Telegram route
 radarctl config                      # print the resolved DATABASE_URL (debug .env)

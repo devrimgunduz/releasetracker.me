@@ -29,6 +29,7 @@ radarctl — Release Radar operator commands
   radarctl list                    List watched repositories with their ids
   radarctl remove ID               Remove a repository by id (asks to confirm)
   radarctl poll                    Run one poll sweep now
+  radarctl poll-repo ID             Force-poll a single repository now
   radarctl summary                 Send the daily email digest now
   radarctl test-telegram           Send a test message down every Telegram route
   radarctl config                  Print the resolved DATABASE_URL (to debug .env)
@@ -47,6 +48,8 @@ case "$cmd" in
   create-admin)  [ $# -ge 1 ] && [ $# -le 2 ] || { echo "usage: radarctl create-admin USER [PASS]" >&2; exit 2; }
                  app "$VENV/python" -m scripts.create_admin "$@" ;;
   poll)          app "$VENV/python" -m scripts.run poll ;;
+  poll-repo)     [ $# -eq 1 ] || { echo "usage: radarctl poll-repo <id>" >&2; exit 2; }
+                 app "$VENV/python" -m scripts.poll_repo "$1" ;;
   summary)       app "$VENV/python" -m scripts.run summary ;;
   test-telegram) app "$VENV/python" -m scripts.run test-telegram ;;
   list)          app "$VENV/python" -m scripts.list_repos ;;
