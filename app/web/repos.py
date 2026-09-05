@@ -68,6 +68,7 @@ async def add_repo(
     exclude_prereleases: bool = Form(False),
     bot_ids: list[int] = Form(default=[]),
     email_digest: bool = Form(False),
+    github_issue: bool = Form(False),
     user=Depends(require_admin),
     session: AsyncSession = Depends(get_session),
     _csrf=Depends(verify_csrf),
@@ -135,7 +136,11 @@ async def add_repo(
         session.add(
             NotificationRoute(repository_id=repo.id, channel_type="email", enabled=True)
         )
-    if telegram_routes or email_digest:
+    if github_issue:
+        session.add(
+            NotificationRoute(repository_id=repo.id, channel_type="github_issue", enabled=True)
+        )
+    if telegram_routes or email_digest or github_issue:
         await session.commit()
 
     channels = []
@@ -143,6 +148,8 @@ async def add_repo(
         channels.append(f"{telegram_routes} Telegram route(s)")
     if email_digest:
         channels.append("the daily email")
+    if github_issue:
+        channels.append("a GitHub issue")
     tail = f" Notifying via {' and '.join(channels)}." if channels else (
         " No notifications set yet — add some on the Notifications page."
     )
@@ -244,6 +251,7 @@ async def edit_notifications(
     # regardless of paused state — so opening and saving never silently changes it.
     attached_bot_ids = {r.bot_id for r in routes if r.channel_type == "telegram" and r.bot_id}
     email_on = any(r.channel_type == "email" for r in routes)
+    github_issue_on = any(r.channel_type == "github_issue" for r in routes)
 
     return render(
         request,
@@ -253,6 +261,7 @@ async def edit_notifications(
         bots=bots,
         attached_bot_ids=attached_bot_ids,
         email_on=email_on,
+        github_issue_on=github_issue_on,
     )
 
 
@@ -262,6 +271,7 @@ async def save_notifications(
     request: Request,
     bot_ids: list[int] = Form(default=[]),
     email_digest: bool = Form(False),
+    github_issue: bool = Form(False),
     user=Depends(current_user),
     session: AsyncSession = Depends(get_session),
     _csrf=Depends(verify_csrf),
@@ -282,11 +292,14 @@ async def save_notifications(
 
     existing_by_bot: dict[int, list[NotificationRoute]] = {}
     existing_email: list[NotificationRoute] = []
+    existing_github_issue: list[NotificationRoute] = []
     for r in routes:
         if r.channel_type == "telegram" and r.bot_id is not None:
             existing_by_bot.setdefault(r.bot_id, []).append(r)
         elif r.channel_type == "email":
             existing_email.append(r)
+        elif r.channel_type == "github_issue":
+            existing_github_issue.append(r)
 
     # Reconcile by existence only: never touch enabled/paused or chat_id of a
     # route that stays. Unchecking a bot removes its route(s); checking a new
@@ -307,6 +320,14 @@ async def save_notifications(
         session.add(NotificationRoute(repository_id=repo_id, channel_type="email", enabled=True))
     elif not email_digest and existing_email:
         for r in existing_email:
+            await session.delete(r)
+
+    if github_issue and not existing_github_issue:
+        session.add(
+            NotificationRoute(repository_id=repo_id, channel_type="github_issue", enabled=True)
+        )
+    elif not github_issue and existing_github_issue:
+        for r in existing_github_issue:
             await session.delete(r)
 
     await session.commit()

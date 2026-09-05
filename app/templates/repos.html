@@ -60,7 +60,8 @@
       <p class="hint" style="margin:0 0 10px">No Telegram bots yet — add one on the <a href="/bots">Telegram bots</a> page.</p>
       {% endif %}
       <label class="check"><input type="checkbox" name="email_digest" value="true" checked> Include in the daily email digest</label>
-      <div class="hint" style="margin-top:6px">Checked Telegram bots deliver to their default chat. Fine-tune or add per-channel routes on the <a href="/routes">Notifications</a> page.</div>
+      <label class="check"><input type="checkbox" name="github_issue" value="true"> File a GitHub issue for new releases</label>
+      <div class="hint" style="margin-top:6px">Checked Telegram bots deliver to their default chat. The GitHub issue channel files into whatever repo <span class="mono">GITHUB_ISSUE_REPO</span> names (e.g. a packaging tracker) — leave it unset in <span class="mono">.env</span> to disable that channel entirely. Fine-tune or add per-channel routes on the <a href="/routes">Notifications</a> page.</div>
     </div>
 
     <button type="submit">Add repository</button>

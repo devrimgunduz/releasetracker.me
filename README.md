@@ -334,15 +334,16 @@ watching `fail2ban-client status release-radar`.
 2. **Repositories** — paste a repository URL (e.g.
    `https://github.com/owner/repo`); the forge, owner, and name are parsed out,
    and public hosts are detected automatically. Choose whether to watch releases
-   and/or tags and whether to exclude pre-releases, and tick which bots (and the
-   email digest) to notify — all on the add form. A per-repo token is optional but
-   recommended for private repos; for public GitHub at scale, set a shared
-   `DEFAULT_GITHUB_TOKEN` instead (60 req/hr unauthenticated vs 5,000 with a token).
+   and/or tags and whether to exclude pre-releases, and tick which bots (the
+   email digest, and the GitHub issue channel) to notify — all on the add form. A
+   per-repo token is optional but recommended for private repos; for public GitHub
+   at scale, set a shared `DEFAULT_GITHUB_TOKEN` instead (60 req/hr unauthenticated
+   vs 5,000 with a token).
 3. **Notifications** — a repository notifies no one until it has a route. Manage a
    repo's routing any time via the **Notifications** button on its row (check the
-   bots and/or daily email), or use the **Notifications** page for per-channel chat
-   overrides and pausing individual routes. Toggle **pre-releases** per repo right
-   on the Repositories page.
+   bots, daily email, and/or GitHub issue), or use the **Notifications** page for
+   per-channel chat overrides and pausing individual routes. Toggle
+   **pre-releases** per repo right on the Repositories page.
 4. **Dashboard** — one card per repository listing its releases inline, newest
    first, with a **more…** link to expand a repo's full history. Sort by *recently
    updated*, *recently added*, or *name*. An amber dot marks a release still
@@ -365,6 +366,12 @@ All settings live in `.env` (see `.env.example`). Notable ones:
   least-recently-polled repos go first, rotating fairly across sweeps.
 - `REQUEST_DELAY_SECONDS` — pause between requests to avoid secondary rate limits
   on large batches (default 0).
+- `GITHUB_ISSUE_TOKEN` / `GITHUB_ISSUE_REPO` — the GitHub-issue notification
+  channel; when both are set, any repo routed to it gets a new issue filed in
+  `GITHUB_ISSUE_REPO` (e.g. a packaging tracker like `pgdg-packaging/pgdg-rpms`)
+  for every new release/tag it discovers. One shared target for the whole app,
+  not per-repository — the token needs Issues: write access on that one repo.
+  Leave either blank to disable the channel.
 
 The daily email goes to `SMTP_RECIPIENTS` (a shared list). Telegram is where
 per-repository, per-channel routing lives. If you later want per-recipient email
@@ -423,7 +430,7 @@ app/
   scheduler.py       APScheduler jobs
   worker.py          standalone worker entrypoint
   providers/         github, gitlab, gitea, bitbucket, sourceforge, pypi, webindex + registry
-  notifiers/         telegram (multi-bot), email digest
+  notifiers/         telegram (multi-bot), email digest, GitHub issue (packaging tracker)
   web/               auth, repos, bots, routes, releases, users
   templates/         Jinja2 + HTMX
   static/            style.css

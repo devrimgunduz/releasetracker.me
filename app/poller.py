@@ -16,6 +16,7 @@ from .crypto import decrypt
 from .db import SessionFactory
 from .models import NotificationRoute, Release, Repository, TelegramBot, utcnow
 from .notifiers.email import build_digest_html, send_digest
+from .notifiers.github_issue import create_github_issue, format_issue
 from .notifiers.telegram import format_message, send_telegram
 from .providers import RateLimited, RepoRef, get_provider
 from .ssrf import SSRFGuardTransport
@@ -159,6 +160,15 @@ async def poll_all() -> None:
                 await asyncio.sleep(TELEGRAM_SEND_DELAY)
             await _dispatch_telegram(client, release_id)
 
+        # Same idea for GitHub issues: retry anything a route wants filed but
+        # that failed last time (API error) or wasn't configured yet.
+        async with SessionFactory() as session:
+            pending_issue_ids = (
+                await session.execute(select(Release.id).where(Release.issue_filed.is_(False)))
+            ).scalars().all()
+        for release_id in pending_issue_ids:
+            await _dispatch_github_issue(client, release_id)
+
 
 async def _poll_repo(client: httpx.AsyncClient, repo_id: int, settings: Settings) -> None:
     async with SessionFactory() as session:
@@ -235,6 +245,7 @@ async def _poll_repo(client: httpx.AsyncClient, repo_id: int, settings: Settings
                 # likewise marked done so they stay quiet.
                 notified=first_run or exclude,
                 summarized=first_run or exclude,
+                issue_filed=first_run or exclude,
             )
             session.add(row)
             created.append(row)
@@ -258,6 +269,7 @@ async def _poll_repo(client: httpx.AsyncClient, repo_id: int, settings: Settings
         if i:
             await asyncio.sleep(TELEGRAM_SEND_DELAY)
         await _dispatch_telegram(client, row.id)
+        await _dispatch_github_issue(client, row.id)
 
 
 async def _dispatch_telegram(client: httpx.AsyncClient, release_id: int) -> None:
@@ -330,6 +342,78 @@ async def _dispatch_telegram(client: httpx.AsyncClient, release_id: int) -> None
 
         # Only mark notified if every route succeeded, so failures retry next sweep.
         row.notified = all_ok
+        await session.commit()
+
+
+async def _dispatch_github_issue(client: httpx.AsyncClient, release_id: int) -> None:
+    async with SessionFactory() as session:
+        row = await session.get(Release, release_id)
+        if row is None or row.issue_filed:
+            return
+
+        # Same one-issue-per-version rule as _dispatch_telegram's one-message-
+        # per-version rule: don't file a second issue for the tag once the
+        # release (or an earlier poll) already got one.
+        version = row.tag_name or row.name
+        if version:
+            duplicate = (
+                await session.execute(
+                    select(Release.id)
+                    .where(
+                        Release.repository_id == row.repository_id,
+                        Release.id != row.id,
+                        Release.tag_name == version,
+                        Release.issue_filed.is_(True),
+                    )
+                    .limit(1)
+                )
+            ).first()
+            if duplicate:
+                row.issue_filed = True
+                await session.commit()
+                log.info("suppressing duplicate GitHub issue for version %s (already filed)", version)
+                return
+
+        repo = await session.get(Repository, row.repository_id)
+
+        route = (
+            await session.execute(
+                select(NotificationRoute)
+                .where(
+                    NotificationRoute.repository_id == row.repository_id,
+                    NotificationRoute.channel_type == "github_issue",
+                    NotificationRoute.enabled.is_(True),
+                )
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+
+        if route is None:
+            row.issue_filed = True  # nothing to do; don't keep re-checking
+            await session.commit()
+            return
+
+        settings = get_settings()
+        if not settings.github_issue_enabled:
+            log.warning(
+                "repo %s has a github_issue route but GITHUB_ISSUE_TOKEN/GITHUB_ISSUE_REPO "
+                "is not configured — leaving it pending",
+                repo.slug,
+            )
+            return  # leave issue_filed False so it files once configured
+
+        title, body = format_issue(
+            repo.slug, repo.forge_type, row.kind, row.name, row.tag_name, row.url
+        )
+        try:
+            await create_github_issue(
+                client, settings.github_issue_token, settings.github_issue_repo, title, body
+            )
+        except Exception:
+            log.exception("github issue creation failed for release id=%s", release_id)
+            return  # leave issue_filed False; retry next sweep
+
+        row.issue_filed = True
         await session.commit()
 
 

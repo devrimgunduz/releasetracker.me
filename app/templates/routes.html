@@ -19,6 +19,7 @@
         <select id="channel_type" name="channel_type" onchange="onChannelChange()">
           <option value="telegram">Telegram (immediate)</option>
           <option value="email">Daily email digest</option>
+          <option value="github_issue">GitHub issue (packaging request)</option>
         </select>
       </div>
     </div>
@@ -53,12 +54,14 @@
         <td><span class="slug">{{ repo.slug }}</span></td>
         <td>
           {% if route.channel_type == 'telegram' %}<span class="pill pill-release">Telegram</span>
-          {% else %}<span class="pill pill-email">Daily email</span>{% endif %}
+          {% elif route.channel_type == 'email' %}<span class="pill pill-email">Daily email</span>
+          {% else %}<span class="pill pill-tag">GitHub issue</span>{% endif %}
         </td>
         <td class="mono" style="color:var(--ink-soft);font-size:13px">
           {% if route.channel_type == 'telegram' %}
             {{ bot.name if bot else '⚠ bot deleted' }}{% if route.chat_id %} → {{ route.chat_id }}{% elif bot and bot.default_chat_id %} → {{ bot.default_chat_id }}{% endif %}
-          {% else %}configured recipients{% endif %}
+          {% elif route.channel_type == 'email' %}configured recipients
+          {% else %}packaging tracker{% endif %}
         </td>
         <td>
           <form method="post" action="/routes/{{ route.id }}/toggle" class="inline-form">

@@ -147,5 +147,6 @@ class Release(Base):
 
     notified: Mapped[bool] = mapped_column(Boolean, default=False)   # Telegram sent?
     summarized: Mapped[bool] = mapped_column(Boolean, default=False)  # included in a digest?
+    issue_filed: Mapped[bool] = mapped_column(Boolean, default=False)  # GitHub issue filed?
 
     repository: Mapped["Repository"] = relationship(back_populates="releases")

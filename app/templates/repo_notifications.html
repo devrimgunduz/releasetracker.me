@@ -36,6 +36,12 @@
       Include in the daily email digest
     </label>
 
+    <label style="font-size:13px;font-weight:600;color:var(--ink-soft);display:block;margin-bottom:8px">GitHub issue</label>
+    <label class="check" style="margin-bottom:18px">
+      <input type="checkbox" name="github_issue" value="true" {{ 'checked' if github_issue_on else '' }}>
+      File a packaging-request issue for new releases
+    </label>
+
     <div class="hint" style="margin-bottom:18px">
       Newly checked bots route to their default chat. For a specific channel, or to
       pause a route without removing it, use the <a href="/routes">Notifications</a> page —

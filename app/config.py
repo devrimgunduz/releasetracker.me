@@ -32,6 +32,14 @@ class Settings(BaseSettings):
     smtp_from: str = "release-radar@releasetracker.me"
     smtp_recipients: str = ""
 
+    # GitHub-issue notifier: repos routed to it get a new issue filed here
+    # (e.g. a packaging tracker like pgdg-packaging/pgdg-rpms) whenever a new
+    # release/tag is found. Needs a token with Issues: write on this one repo;
+    # like DEFAULT_GITHUB_TOKEN it's an env var, so it lives in .env as plain
+    # text rather than encrypted at rest.
+    github_issue_token: str = ""
+    github_issue_repo: str = ""  # "owner/repo"
+
     session_https_only: bool = False
 
     # Comma-separated IPs of reverse proxies allowed to set X-Forwarded-For.
@@ -52,6 +60,10 @@ class Settings(BaseSettings):
     @property
     def email_enabled(self) -> bool:
         return bool(self.smtp_host and self.recipient_list)
+
+    @property
+    def github_issue_enabled(self) -> bool:
+        return bool(self.github_issue_token and self.github_issue_repo)
 
     @property
     def session_signing_key(self) -> str:
