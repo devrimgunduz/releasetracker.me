@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..crypto import encrypt
 from ..csrf import verify_csrf
 from ..db import get_session
+from ..forge_detect import detect_forge
 from ..models import NotificationRoute, Release, Repository, TelegramBot
 from ..providers import available_providers
 from ..repo_url import RepoURLError, parse_repo_url
@@ -60,7 +61,7 @@ async def list_repos(
 @router.post("/add")
 async def add_repo(
     request: Request,
-    forge_type: str = Form("github"),
+    forge_type: str = Form("auto"),
     url: str = Form(...),
     token: str = Form(""),
     watch_releases: bool = Form(False),
@@ -76,6 +77,29 @@ async def add_repo(
     # forge_type from the dropdown is only a hint; a known host in the URL wins.
     try:
         forge, base_url, owner, name = parse_repo_url(url, forge_type)
+        if forge == "auto":
+            # Unknown host and no explicit choice: probe its API for the forge.
+            try:
+                validate_public_url(base_url)
+            except SSRFError as exc:
+                flash(request, str(exc), "error")
+                return redirect("/repositories")
+            detected = await detect_forge(base_url)
+            if detected is None:
+                # Not Gitea/GitLab. A path deeper than owner/repo is almost
+                # certainly a directory listing, so treat it as a web index;
+                # a bare owner/repo on an unknown host is more likely a typo.
+                wf, wb, wo, wn = parse_repo_url(url, "webindex")
+                if len(wn.split("/")) > 2:
+                    detected = "webindex"
+            if detected is None:
+                flash(
+                    request,
+                    f"Couldn't detect the forge at {base_url}. Pick its type from the Forge dropdown.",
+                    "error",
+                )
+                return redirect("/repositories")
+            forge, base_url, owner, name = parse_repo_url(url, detected)
     except RepoURLError as exc:
         flash(request, str(exc), "error")
         return redirect("/repositories")

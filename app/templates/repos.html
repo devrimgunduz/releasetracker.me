@@ -13,16 +13,16 @@
              autocomplete="off" data-bwignore data-1p-ignore data-lpignore="true">
       <div class="hint" style="margin-top:5px">
         Paste the repo's web URL. Public hosts (GitHub, GitLab, Bitbucket, Codeberg)
-        are detected automatically. For a self-hosted server, pick its type below.
+        are detected automatically; self-hosted Gitea/Forgejo and GitLab are detected by probing the server, and deep directory-listing URLs are treated as web indexes. Pick a type below only to override.
       </div>
     </div>
     <div class="form-grid">
       <div class="field">
-        <label for="forge_type">Forge <span class="hint">used only for self-hosted hosts</span></label>
+        <label for="forge_type">Forge <span class="hint">auto-detected unless overridden</span></label>
         <select id="forge_type" name="forge_type" onchange="onForgeChange()">
+          <option value="auto" selected data-tags-only="0">Auto-detect</option>
           {% for p in providers %}
           <option value="{{ p.key }}"
-                  {{ 'selected' if p.key == 'github' else '' }}
                   data-tags-only="{{ '1' if not p.supports_releases else '0' }}">{{ p.label }}</option>
           {% endfor %}
         </select>
