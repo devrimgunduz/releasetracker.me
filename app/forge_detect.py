@@ -8,7 +8,8 @@ from __future__ import annotations
 
 import httpx
 
-from .ssrf import SSRFGuardTransport
+from .repo_url import RepoURLError, parse_repo_url
+from .ssrf import SSRFGuardTransport, validate_public_url
 
 PROBE_TIMEOUT = httpx.Timeout(6.0)
 
@@ -55,3 +56,26 @@ async def detect_forge(base_url: str, client: httpx.AsyncClient | None = None) -
     finally:
         if own:
             await client.aclose()
+
+
+async def resolve_repo_url(url: str, forge_hint: str) -> tuple[str, str, str, str]:
+    """parse_repo_url, plus detection when the host is unknown and the hint is
+    "auto". Raises RepoURLError (or SSRFError) with a user-facing message."""
+    forge, base_url, owner, name = parse_repo_url(url, forge_hint)
+    if forge != "auto":
+        return forge, base_url, owner, name
+
+    validate_public_url(base_url)
+    detected = await detect_forge(base_url)
+    if detected is None:
+        # Not Gitea/GitLab. A path deeper than owner/repo is almost certainly a
+        # directory listing, so treat it as a web index; a bare owner/repo on an
+        # unknown host is more likely a typo.
+        _, _, _, wname = parse_repo_url(url, "webindex")
+        if len(wname.split("/")) > 2:
+            detected = "webindex"
+    if detected is None:
+        raise RepoURLError(
+            f"Couldn't detect the forge at {base_url}. Pick its type from the Forge dropdown."
+        )
+    return parse_repo_url(url, detected)
