@@ -3,7 +3,7 @@
 [![CI](https://github.com/devrimgunduz/releasetracker.me/actions/workflows/ci.yml/badge.svg)](https://github.com/devrimgunduz/releasetracker.me/actions/workflows/ci.yml)
 
 Self-hosted watchtower for software releases. Register repositories from
-**GitHub, GitLab, Gitea/Forgejo, Bitbucket, SourceForge, PyPI, or a plain web
+**GitHub, GitLab, Codeberg, Gitea/Forgejo, Bitbucket, SourceForge, PyPI, or a plain web
 directory index**; a poller checks them on a
 schedule and sends **Telegram** notifications the moment something new appears,
 plus a **daily summary email**. Multiple Telegram bots are supported, so
@@ -31,7 +31,8 @@ poll firing more than once.
 
 **Providers** are pluggable. Each forge is one file in `app/providers/`
 implementing `list_releases()` / `list_tags()` and registering itself. Adding a
-new forge later touches nothing else. (Bitbucket has no releases API, so it is
+new forge later touches nothing else. (Codeberg runs Forgejo, so its provider
+is the Gitea one pinned to `https://codeberg.org`. Bitbucket has no releases API, so it is
 tags-only. SourceForge has no git releases/tags at all — its file-release RSS
 feed is used instead, with each top-level version folder treated as one release;
 paste the project URL, e.g. `https://sourceforge.net/projects/proftpd`. PyPI has no git releases/tags either — its per-project releases RSS feed is
@@ -430,7 +431,7 @@ app/
   poller.py          detect / dedup / seed / dispatch  ← the engine
   scheduler.py       APScheduler jobs
   worker.py          standalone worker entrypoint
-  providers/         github, gitlab, gitea, bitbucket, sourceforge, pypi, webindex + registry
+  providers/         github, gitlab, gitea, codeberg, bitbucket, sourceforge, pypi, webindex + registry
   notifiers/         telegram (multi-bot), email digest, GitHub issue (packaging tracker)
   web/               auth, repos, bots, routes, releases, users
   templates/         Jinja2 + HTMX

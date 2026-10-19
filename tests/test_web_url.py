@@ -19,6 +19,10 @@ def test_bitbucket_public():
     assert _repo(forge_type="bitbucket").web_url == "https://bitbucket.org/acme/widget"
 
 
+def test_codeberg_public():
+    assert _repo(forge_type="codeberg").web_url == "https://codeberg.org/acme/widget"
+
+
 def test_gitea_selfhosted_uses_base_url():
     r = _repo(forge_type="gitea", base_url="https://codeberg.org")
     assert r.web_url == "https://codeberg.org/acme/widget"

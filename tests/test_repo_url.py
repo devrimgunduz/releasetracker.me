@@ -31,8 +31,9 @@ OK_CASES = [
     ("https://gitlab.com/gitlab-org/gitlab/-/tree/master", "gitlab", ("gitlab", "", "gitlab-org", "gitlab")),
     # Bitbucket.
     ("https://bitbucket.org/team/repo", "github", ("bitbucket", "", "team", "repo")),
-    # Codeberg is a public Forgejo -> gitea forge with an explicit base_url.
-    ("https://codeberg.org/forgejo/forgejo", "github", ("gitea", "https://codeberg.org", "forgejo", "forgejo")),
+    # Codeberg (a public Forgejo) has its own forge key and default base_url.
+    ("https://codeberg.org/forgejo/forgejo", "github", ("codeberg", "", "forgejo", "forgejo")),
+    ("https://codeberg.org/pgsql_tweaks/pgsql_tweaks.git", "auto", ("codeberg", "", "pgsql_tweaks", "pgsql_tweaks")),
     # Self-hosted: forge falls back to the hint, host becomes the base_url.
     ("https://git.mycompany.com/ops/infra", "gitea", ("gitea", "https://git.mycompany.com", "ops", "infra")),
     # Self-hosted keeps the scheme (http) and port.

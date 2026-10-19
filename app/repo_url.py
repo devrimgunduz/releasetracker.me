@@ -22,7 +22,7 @@ KNOWN_HOSTS: dict[str, tuple[str, str]] = {
     "github.com": ("github", ""),
     "gitlab.com": ("gitlab", ""),
     "bitbucket.org": ("bitbucket", ""),
-    "codeberg.org": ("gitea", "https://codeberg.org"),  # public Forgejo
+    "codeberg.org": ("codeberg", ""),  # public Forgejo
     "sourceforge.net": ("sourceforge", ""),
     "pypi.org": ("pypi", ""),
 }

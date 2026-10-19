@@ -42,7 +42,7 @@ class Repository(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    forge_type: Mapped[str] = mapped_column(String(20))  # github|gitlab|gitea|bitbucket
+    forge_type: Mapped[str] = mapped_column(String(20))  # github|gitlab|gitea|codeberg|bitbucket|...
     # Instance base URL. Empty means "use the provider's public default".
     base_url: Mapped[str] = mapped_column(String(255), default="")
     owner: Mapped[str] = mapped_column(String(200))       # owner / group / workspace
@@ -91,6 +91,8 @@ class Repository(Base):
             root = self.base_url or "https://gitlab.com"
         elif self.forge_type == "bitbucket":
             root = self.base_url or "https://bitbucket.org"
+        elif self.forge_type == "codeberg":
+            root = self.base_url or "https://codeberg.org"
         else:  # gitea / forgejo are self-hosted; base_url is the site root
             root = self.base_url or ""
         return f"{root.rstrip('/')}/{self.owner}/{self.name}" if root else ""
