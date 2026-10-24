@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
+import httpx
+
 from .base import FetchResult, Provider, RepoRef, ReleaseItem, looks_prerelease, register
 
 
@@ -28,7 +30,16 @@ class GiteaProvider(Provider):
 
     async def list_releases(self, repo: RepoRef, etag: str | None = None) -> FetchResult:
         url = f"{self.api_root(repo)}/repos/{repo.owner}/{repo.name}/releases"
-        data, new_etag, not_modified = await self._fetch(url, repo, etag, {"limit": 30})
+        try:
+            data, new_etag, not_modified = await self._fetch(url, repo, etag, {"limit": 30})
+        except httpx.HTTPStatusError as exc:
+            # Gitea answers 403 when the repo has its Releases unit disabled
+            # (e.g. gitea.osgeo.org postgis/postgis). Treat that as "no releases"
+            # so the tag fetch still runs. Rate-limit 403s never get here: the
+            # base layer raises RateLimited for those first.
+            if exc.response.status_code == 403:
+                return FetchResult([], None, False)
+            raise
         if not_modified:
             return FetchResult([], new_etag, True)
         items = [

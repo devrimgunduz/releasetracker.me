@@ -113,3 +113,46 @@ async def test_credentials_kept_on_same_origin_redirect(monkeypatch):
         await get_provider("github", c).list_releases(repo)
 
     assert seen[1][1] == "Bearer s3cret"  # same origin: token still sent
+
+
+GITEA_REPO = RepoRef(owner="postgis", name="postgis", base_url="https://gitea.example.org")
+
+
+@pytest.mark.asyncio
+async def test_gitea_releases_403_means_no_releases(monkeypatch):
+    # A Gitea repo with its Releases unit disabled answers 403 on /releases.
+    # That must not abort the poll: report no releases so tags still get fetched.
+    monkeypatch.setattr("app.providers.base.validate_public_url", lambda url: None)
+
+    def handler(req):
+        return httpx.Response(
+            403, json={"message": "user should have specific read permission or be a repo admin or a site admin"}
+        )
+
+    async with _client(handler) as c:
+        res = await get_provider("gitea", c).list_releases(GITEA_REPO)
+    assert res.items == [] and res.not_modified is False
+
+
+@pytest.mark.asyncio
+async def test_gitea_releases_rate_limit_403_still_raises(monkeypatch):
+    monkeypatch.setattr("app.providers.base.validate_public_url", lambda url: None)
+
+    def handler(req):
+        return httpx.Response(403, json={"message": "rate limit exceeded"}, headers={"retry-after": "60"})
+
+    async with _client(handler) as c:
+        with pytest.raises(RateLimited):
+            await get_provider("gitea", c).list_releases(GITEA_REPO)
+
+
+@pytest.mark.asyncio
+async def test_gitea_releases_other_errors_still_raise(monkeypatch):
+    monkeypatch.setattr("app.providers.base.validate_public_url", lambda url: None)
+
+    def handler(req):
+        return httpx.Response(404, json={"message": "not found"})
+
+    async with _client(handler) as c:
+        with pytest.raises(httpx.HTTPStatusError):
+            await get_provider("gitea", c).list_releases(GITEA_REPO)
